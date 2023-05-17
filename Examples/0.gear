@@ -1,0 +1,6 @@
+@set AAA	0;
+@rem AAA;
+
+sint main() {
+	return (1 + 2++ - 4) - 1;
+}
