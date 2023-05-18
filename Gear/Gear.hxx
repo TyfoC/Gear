@@ -24,6 +24,7 @@ namespace Gear {
 		RETURN_CODE_NO_ACTION_SELECTED,
 		RETURN_CODE_FAILED_TO_OPEN_FILE,
 		RETURN_CODE_FAILED_WRITE_FILE,
+		RETURN_CODE_LEX_FAILED,
 	};
 
 	static const std::string DefaultOutputFileName = "output";

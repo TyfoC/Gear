@@ -3,16 +3,15 @@
 void PrintInfo() {
 	std::cout << "Gear Programming Language v" << GEAR_VERSION << std::endl;
 	std::cout << "Author's Github: github.com/TyfoC" << std::endl;
-	std::cout << "\"Gear -help\" to get help" << std::endl << std::endl;
 }
 
 void PrintHelp() {
 	std::cout << "Gear -action inputPath1 inputPathN -option -param value" << std::endl;
 	std::cout << "Actions:" << std::endl;
+	std::cout << "\t-blt - Build Lexeme Table" << std::endl;
+	std::cout << "Options:" << std::endl;
 	std::cout << "\t-info - show info about program" << std::endl;
 	std::cout << "\t-help - show help" << std::endl;
-	std::cout << "\t-blt - Build Lexeme Table" << std::endl;
-	std::cout << "Options: N/A" << std::endl;
 	std::cout << "Params:" << std::endl;
 	std::cout << "\t-i includeDirectoryPath - specify Include directory" << std::endl;
 	std::cout << "\t-o outputPath - specify Output file path" << std::endl;
@@ -55,7 +54,7 @@ int main(int argc, char** argv) {
 	}
 
 	if (action == Gear::Action::UNDEFINED) {
-		std::cerr << "Error: no action selected!" << std::endl;
+		std::cerr << "No action selected. \"Gear -help\" to get help" << std::endl;
 		return Gear::RETURN_CODE_NO_ACTION_SELECTED;
 	}
 	else if (action == Gear::Action::BUILD_LEXEME_TABLE) {
@@ -68,8 +67,13 @@ int main(int argc, char** argv) {
 			}
 
 			std::string fileText = fileStream.readText();
-			std::vector<Gear::Lexeme> lexemes = Gear::Lexer::Lex(fileText, 0, Gear::Tokens);
-			if (!Gear::Config::JsonWrite(outputPath, fileText, lexemes)) {
+			Gear::LexResult lexResult = Gear::Lexer::Lex(fileText, 0, Gear::Tokens);
+			if (!lexResult.Completed) {
+				for (const Gear::Message& message : lexResult.Messages) std::cout << (std::string)message << std::endl;
+				return Gear::RETURN_CODE_LEX_FAILED;
+			}
+
+			if (!Gear::Config::JsonWrite(outputPath, fileText, lexResult.Output)) {
 				fileStream.close();
 				std::cerr << "Error: cannot write file \"" << outputPath << "\"!" << std::endl;
 				return Gear::RETURN_CODE_FAILED_WRITE_FILE;

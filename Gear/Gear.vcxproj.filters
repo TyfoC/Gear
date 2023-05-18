@@ -27,6 +27,9 @@
     <ClCompile Include="Gear-Config.cxx">
       <Filter>Исходные файлы</Filter>
     </ClCompile>
+    <ClCompile Include="Gear-Message.cxx">
+      <Filter>Исходные файлы</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="Gear-Lexer.hxx">
@@ -42,6 +45,12 @@
       <Filter>Файлы заголовков</Filter>
     </ClInclude>
     <ClInclude Include="Gear-Config.hxx">
+      <Filter>Файлы заголовков</Filter>
+    </ClInclude>
+    <ClInclude Include="Gear-Message.hxx">
+      <Filter>Файлы заголовков</Filter>
+    </ClInclude>
+    <ClInclude Include="Gear-Result.hxx">
       <Filter>Файлы заголовков</Filter>
     </ClInclude>
   </ItemGroup>

@@ -65,14 +65,27 @@ size_t Gear::Lexer::FindPreviousPosition(const std::string& source, size_t posit
 	return std::string::npos;
 }
 
-std::vector<Gear::Lexeme> Gear::Lexer::Lex(const std::string& source, size_t position, const std::vector<Token>& tokens) {
+Gear::LexResult Gear::Lexer::Lex(const std::string& source, size_t position, const std::vector<Token>& tokens) {
+	LexResult result;
 	Lexeme lexeme;
-	std::vector<Lexeme> lexemes;
+	size_t line = 1, column = 1;
 	while (true) {
 		lexeme = GetLexeme(source, position, tokens);
 		if (lexeme.GrammarType == GRAMMAR_TYPE_EOF) break;
-		lexemes.push_back(lexeme);
+		else if (lexeme.GrammarType == GRAMMAR_TYPE_UNDEFINED) {
+			result.Messages.push_back({ MESSAGE_TYPE_ERROR, "lexeme type cannot be set (line " + std::to_string(line) + ", column " + std::to_string(column) + ")" });
+			return result;
+		}
+		else if (lexeme.GrammarType == GRAMMAR_TYPE_LINE_BREAK) {
+			++line;
+			column = 1;
+		}
+		else column += lexeme.Length;
+
 		position += lexeme.Length;
+		result.Output.push_back(lexeme);
 	}
-	return lexemes;
+
+	result.Completed = true;
+	return result;
 }

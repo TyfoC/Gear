@@ -6,6 +6,8 @@
 #include <vector>
 #include <regex>
 #include <algorithm>
+#include "Gear-Message.hxx"
+#include "Gear-Result.hxx"
 
 namespace Gear {
 	enum BasicGrammarType {
@@ -28,12 +30,14 @@ namespace Gear {
 		size_t	Length;
 	};
 
+	using LexResult = ExecutionResult<std::vector<Lexeme> >;
+
 	class Lexer {
 	public:
 		static Lexeme GetLexeme(const std::string& source, size_t position, const std::vector<Token>& tokens);
 		static size_t FindNextPosition(const std::string& source, size_t position, const std::vector<Token>& tokens);
 		static size_t FindPreviousPosition(const std::string& source, size_t position, const std::vector<Token>& tokens);
-		static std::vector<Lexeme> Lex(const std::string& source, size_t position, const std::vector<Token>& tokens);
+		static LexResult Lex(const std::string& source, size_t position, const std::vector<Token>& tokens);
 	};
 }
 
