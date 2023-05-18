@@ -65,8 +65,8 @@ size_t Gear::Lexer::FindPreviousPosition(const std::string& source, size_t posit
 	return std::string::npos;
 }
 
-Gear::LexResult Gear::Lexer::Lex(const std::string& source, size_t position, const std::vector<Token>& tokens) {
-	LexResult result;
+Gear::LexingResult Gear::Lexer::Lex(const std::string& source, size_t position, const std::vector<Token>& tokens) {
+	LexingResult result;
 	Lexeme lexeme;
 	size_t line = 1, column = 1;
 	while (true) {

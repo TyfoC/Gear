@@ -67,13 +67,13 @@ int main(int argc, char** argv) {
 			}
 
 			std::string fileText = fileStream.readText();
-			Gear::LexResult lexResult = Gear::Lexer::Lex(fileText, 0, Gear::Tokens);
-			if (!lexResult.Completed) {
-				for (const Gear::Message& message : lexResult.Messages) std::cout << (std::string)message << std::endl;
+			Gear::LexingResult lexingResult = Gear::Lexer::Lex(fileText, 0, Gear::Tokens);
+			if (!lexingResult.Completed) {
+				for (const Gear::Message& message : lexingResult.Messages) std::cout << (std::string)message << std::endl;
 				return Gear::RETURN_CODE_LEX_FAILED;
 			}
 
-			if (!Gear::Config::JsonWrite(outputPath, fileText, lexResult.Output)) {
+			if (!Gear::Config::JsonWrite(outputPath, fileText, lexingResult.Output)) {
 				fileStream.close();
 				std::cerr << "Error: cannot write file \"" << outputPath << "\"!" << std::endl;
 				return Gear::RETURN_CODE_FAILED_WRITE_FILE;

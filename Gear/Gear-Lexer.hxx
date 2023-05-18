@@ -31,14 +31,14 @@ namespace Gear {
 		size_t	Length;
 	};
 
-	using LexResult = ExecutionResult<std::vector<Lexeme> >;
+	using LexingResult = ExecutionResult<std::vector<Lexeme> >;
 
 	class Lexer {
 	public:
 		static Lexeme GetLexeme(const std::string& source, size_t position, const std::vector<Token>& tokens);
 		static size_t FindNextPosition(const std::string& source, size_t position, const std::vector<Token>& tokens);
 		static size_t FindPreviousPosition(const std::string& source, size_t position, const std::vector<Token>& tokens);
-		static LexResult Lex(const std::string& source, size_t position, const std::vector<Token>& tokens);
+		static LexingResult Lex(const std::string& source, size_t position, const std::vector<Token>& tokens);
 	};
 }
 
