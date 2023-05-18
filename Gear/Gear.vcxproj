@@ -131,6 +131,7 @@
     <ClCompile Include="Gear-FileStream.cxx" />
     <ClCompile Include="Gear-Lexer.cxx" />
     <ClCompile Include="Gear-Message.cxx" />
+    <ClCompile Include="Gear-Utils.cxx" />
     <ClCompile Include="Gear.cxx" />
   </ItemGroup>
   <ItemGroup>
@@ -140,6 +141,7 @@
     <ClInclude Include="Gear-Lexer.hxx" />
     <ClInclude Include="Gear-Message.hxx" />
     <ClInclude Include="Gear-Result.hxx" />
+    <ClInclude Include="Gear-Utils.hxx" />
     <ClInclude Include="Gear.hxx" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />

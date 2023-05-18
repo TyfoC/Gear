@@ -8,6 +8,7 @@
 #include <algorithm>
 #include "Gear-Message.hxx"
 #include "Gear-Result.hxx"
+#include "Gear-Utils.hxx"
 
 namespace Gear {
 	enum BasicGrammarType {

@@ -73,7 +73,11 @@ Gear::LexResult Gear::Lexer::Lex(const std::string& source, size_t position, con
 		lexeme = GetLexeme(source, position, tokens);
 		if (lexeme.GrammarType == GRAMMAR_TYPE_EOF) break;
 		else if (lexeme.GrammarType == GRAMMAR_TYPE_UNDEFINED) {
-			result.Messages.push_back({ MESSAGE_TYPE_ERROR, "lexeme type cannot be set (line " + std::to_string(line) + ", column " + std::to_string(column) + ")" });
+			result.Messages.push_back({
+				MESSAGE_TYPE_ERROR,
+				"lexeme type cannot be set (line " + std::to_string(line) + ", column " + std::to_string(column) + "):\n"
+				+ source.substr(position, GetSymbolsCountBeforeLineBreak(source, position))
+			});
 			return result;
 		}
 		else if (lexeme.GrammarType == GRAMMAR_TYPE_LINE_BREAK) {

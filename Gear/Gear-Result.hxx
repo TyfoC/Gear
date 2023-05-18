@@ -7,7 +7,7 @@
 
 namespace Gear {
 	template<typename T> struct ExecutionResult {
-		bool					Completed;
+		bool					Completed = false;
 		std::vector<Message>	Messages;
 		T						Output;
 	};

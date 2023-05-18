@@ -109,8 +109,7 @@ namespace Gear {
 		{ GRAMMAR_TYPE_COMMA, R"(,)" },
 		{ GRAMMAR_TYPE_COLON, R"(\:)" },
 		{ GRAMMAR_TYPE_SEMICOLON, R"(\;)" },
-		{ GRAMMAR_TYPE_IDENTIFIER, R"(\b[_a-zA-Z]\w*\b)" },
-		{ GRAMMAR_TYPE_RAW_DATA, "" },
+		{ GRAMMAR_TYPE_IDENTIFIER, R"(\b[_a-zA-Z]\w*\b)" }
 	};
 }
 
