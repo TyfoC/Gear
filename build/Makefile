@@ -3,7 +3,7 @@ WIN_GCC64=x86_64-w64-mingw32-gcc
 LINUX_GCC=gcc
 
 COMPILE_FLAGS=-Wall -Wextra -I../include -O2 -std=c17
-LINK_FLAGS=-O2
+LINK_FLAGS=-O2 -static
 
 SOURCE_FILES=$(shell find ../source -name *.c)
 LINUX_OBJECT_FILES32=$(addsuffix l32.o, $(SOURCE_FILES))
@@ -28,19 +28,22 @@ build-gear:
 clear:
 	rm -f $(LINUX_OBJECT_FILES32) $(LINUX_OBJECT_FILES64) $(WIN_OBJECT_FILES32) $(WIN_OBJECT_FILES64)
 
+clear-binaries:
+	rm -f  ./bin/*
+
 build-gear-linux32:
 ifndef LINUX_GCC_INSTALLED
 	$(error "$(LINUX_GCC) is not installed")
 endif
 	$(MAKE) $(LINUX_OBJECT_FILES32)
-	$(LINUX_GCC) $(LINUX_OBJECT_FILES32) -m32 $(LINK_FLAGS) -o ./bin/gear32
+	$(LINUX_GCC) $(LINUX_OBJECT_FILES32) -m32 $(LINK_FLAGS) -o ./bin/gear32.elf
 
 build-gear-linux64:
 ifndef LINUX_GCC_INSTALLED
 	$(error "$(LINUX_GCC) is not installed")
 endif
 	$(MAKE) $(LINUX_OBJECT_FILES64)
-	$(LINUX_GCC) $(LINUX_OBJECT_FILES64) -m64 $(LINK_FLAGS) -o ./bin/gear64
+	$(LINUX_GCC) $(LINUX_OBJECT_FILES64) -m64 $(LINK_FLAGS) -o ./bin/gear64.elf
 
 build-gear-win32:
 ifndef WIN_GCC32_INSTALLED

@@ -101,31 +101,16 @@ unsigned char gear_is_letter(char value) {
 }
 
 unsigned char gear_resize_string(char** source, size_t newLength) {
-	if (!*source) {
-		*source = (char*)calloc(1, sizeof(char));
-		if (!*source) return 0;
-		*source[0] = 0;
-	}
-
-	char* result = (char*)realloc(*source, (newLength + 1) * sizeof(char));
-	if (!result) return 0;
-
-	result[newLength] = 0;
-	*source = result;
-	return 1;
+	return gear_resize_array((void**)source, newLength + 1);
 }
 
-unsigned char gear_append_to_string(char** destination, const char* source) {
-	size_t destLength = strlen(*destination);
-	if (!gear_resize_string(destination, destLength + strlen(source))) return 0;
-
-	memcpy(&(*destination)[destLength], source, strlen(source) + 1);
-	return 1;
+unsigned char gear_append_string(char** destination, const char* source) {
+	return gear_append_array((void**)destination, source, strlen(*destination), strlen(source) + 1);
 }
 
 unsigned char gear_append_letters(char** destination, const char* letters, size_t count) {
 	size_t destLength = strlen(*destination);
-	if (!gear_resize_string(destination, destLength + count)) return 0;
+	if (!gear_resize_array((void**)destination, destLength + count + 1)) return 0;
 
 	memcpy(&(*destination)[destLength], letters, count);
 	(*destination)[destLength + count] = 0;
@@ -133,24 +118,24 @@ unsigned char gear_append_letters(char** destination, const char* letters, size_
 }
 
 size_t gear_get_redundant_length(const char* source) {
-	size_t result = 0;
-	while (source[result] && gear_is_redundant(source[result])) result += 1;
+	size_t result = 0, length = strlen(source);
+	while (result < length && gear_is_redundant(source[result])) result += 1;
 	return result;
 }
 
 size_t gear_get_identifier_length(const char* source) {
 	if (!gear_is_letter(source[0])) return 0;
 
-	size_t result = 1;
-	while (source[result] && gear_is_alpha(source[result])) result += 1;
+	size_t result = 1, length = strlen(source);
+	while (result < length && gear_is_alpha(source[result])) result += 1;
 	return result;
 }
 
 size_t gear_get_string_literal_length(const char* source, char limiter) {
-	if (source[0] != limiter) return 0;
+	if (!source || source[0] != limiter) return 0;
 
-	size_t result = 1;
-	while (source[result]) {
+	size_t result = 1, length = strlen(source);
+	while (result < length) {
 		if (source[result] == limiter && source[result - 1] != '\\') return result + 1;
 		result += 1;
 	}
