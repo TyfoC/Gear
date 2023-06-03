@@ -1,3 +1,8 @@
+/*
+	C main function
+		argc - count of input arguments
+		argv - input arguments
+*/
 int main(int argc, char** argv) {
-	return 1@join 0@preinc "inc.gear";
+	return 1@join 0@preinc "inc.gear";	//	-> return 10123;
 }

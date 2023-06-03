@@ -23,5 +23,6 @@ unsigned char gear_append_letters(char** destination, const char* letters, size_
 size_t gear_get_redundant_length(const char* source);
 size_t gear_get_identifier_length(const char* source);
 size_t gear_get_string_literal_length(const char* source, char limiter);
+size_t gear_get_count_before_line_break(const char* source);
 
 #endif

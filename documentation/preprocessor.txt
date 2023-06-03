@@ -1,3 +1,6 @@
+Commentaries:
+	//	inline commentary
+	/* multiline commentary */
 Directives:
 	@dog
 	X@join Y

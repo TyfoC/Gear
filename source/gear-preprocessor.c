@@ -121,6 +121,19 @@ gear_preprocessing_result_t gear_preprocess(const char* source, const char* srcF
 				return result;
 			}
 		}
+		else if (source[i] == GEAR_COMMENTARY_SYMBOL && source[i + 1] == GEAR_COMMENTARY_SYMBOL) {
+			i += 2;
+			i += gear_get_count_before_line_break(&source[i]);
+		}
+		else if (source[i] == GEAR_COMMENTARY_SYMBOL && source[i + 1] == GEAR_MULTILINE_COMMENTARY_SYMBOL) {
+			i += 2;
+			while (i < length) {
+				if (source[i] == GEAR_MULTILINE_COMMENTARY_SYMBOL && source[i + 1] == GEAR_COMMENTARY_SYMBOL) break;
+				i += 1;
+			}
+			
+			i += 2;
+		}
 		else {
 			size_t subLength = gear_get_identifier_length(&source[i]);
 			if (subLength) {

@@ -175,3 +175,9 @@ size_t gear_get_string_literal_length(const char* source, char limiter) {
 
 	return result;
 }
+
+size_t gear_get_count_before_line_break(const char* source) {
+	size_t length = strlen(source), count = 0;
+	while (count < length && !gear_is_line_break(source[count])) count += 1;
+	return count;
+}

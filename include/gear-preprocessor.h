@@ -5,7 +5,9 @@
 #include "gear-path.h"
 #include "gear-file.h"
 
-#define GEAR_PREPROCESSOR_SYMBOL	'@'
+#define GEAR_PREPROCESSOR_SYMBOL				'@'
+#define GEAR_COMMENTARY_SYMBOL					'/'
+#define GEAR_MULTILINE_COMMENTARY_SYMBOL		'*'
 #define GEAR_PREPROCESSOR_JUMP_TO_USEFUL($$target, $$source, $$position, $$tmpLen, $$sourceLen, $$retVal, $$retStatus) \
 if (($$tmpLen = gear_get_redundant_length(&$$source[$$position]))) {\
 	if (!gear_append_letters(&$$target, &$$source[$$position], $$tmpLen)) {\
