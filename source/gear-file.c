@@ -1,22 +1,45 @@
 #include <gear-file.h>
 
-char* gear_read_file_text(const char* filePath) {
-	char* result;
-	long fsize;
-	FILE* inputFile = fopen(filePath, "r");
-	if (!inputFile) return 0;
+gear_file_t gear_open_file(const char* path, unsigned char mode) {
+	gear_file_t result;
+	char modeString[3] = { mode & GEAR_FILE_MODE_WRITE ? 'w' : 'r', mode & GEAR_FILE_MODE_BINARY ? 'b' : 0, 0 };
+	if (!(result.handle = fopen(path, modeString))) return result;
 
-	fseek(inputFile, 0, SEEK_END);
-	fsize = ftell(inputFile);
-	fseek(inputFile, 0, SEEK_SET);
+	result.path = gear_copy_string(path);
+	result.mode = mode;
+	return result;
+}
 
-	result = (char*)calloc(fsize + 1, sizeof(char));
+void gear_close_file(gear_file_t value) {
+	if (value.path) free(value.path);
+	if (value.handle) {
+		fclose(value.handle);
+		value.handle = 0;
+	}
+}
 
-	size_t bytesCount = fread(result, fsize, 1, inputFile);
-	GEAR_UNREFERENCED(bytesCount);
+size_t gear_get_file_size(const gear_file_t value) {
+	if (!GEAR_FILE_IS_OPEN(value)) return GEAR_NPOS;
 
-	fclose(inputFile);
-	result[fsize] = 0;
+	long pos = ftell(value.handle);
+	fseek(value.handle, 0, SEEK_END);
+	size_t result = (size_t)ftell(value.handle);
+	fseek(value.handle, pos, SEEK_SET);
+	return result;
+}
 
+char* gear_read_file(const gear_file_t value) {
+	if (!GEAR_FILE_IS_OPEN(value)) return NULL;
+
+	size_t fileSize = gear_get_file_size(value);
+	if (fileSize == GEAR_NPOS) return NULL;
+
+	char* result = (char*)calloc(fileSize + (value.mode & GEAR_FILE_MODE_BINARY ? 0 : 1), sizeof(char));
+	if (!result) return NULL;
+
+	size_t cntRead = fread(result, sizeof(char), fileSize, value.handle);
+	GEAR_UNREFERENCED(cntRead);
+
+	if (value.mode & GEAR_FILE_MODE_BINARY) result[fileSize] = 0;
 	return result;
 }

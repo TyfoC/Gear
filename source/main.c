@@ -29,20 +29,35 @@ int main(int argc, char** argv) {
 			return GEAR_STATUS_MISSING_FILE_PATH;
 		}
 
-		char* fileData = gear_read_file_text(argv[2]);
-		if (!fileData) {
+		gear_file_t file = gear_open_file(argv[2], GEAR_FILE_MODE_READ | GEAR_FILE_MODE_TEXT);
+		if (!GEAR_FILE_IS_OPEN(file)) {
 			printf("Error: failed to open `%s`!\n", argv[2]);
 			return GEAR_STATUS_FAILED_TO_OPEN_FILE;
 		}
 
-		gear_preprocessing_result_t result = gear_preprocess(fileData);
+		char* fileData = gear_read_file(file);
+		if (!fileData) {
+			printf("Error: failed to read `%s`!\nPossible causes: file does not exist/file cannot be read/not enough memory\n", argv[2]);
+			return GEAR_STATUS_FAILED_TO_READ_FILE;
+		}
+
+		char* fileDirectoryPath = gear_get_file_path_directory(argv[2]);
+		if (!fileDirectoryPath) {
+			printf("Error: cannot get directory path from file path (not enough memory)!\n");
+			return GEAR_STATUS_FAILED_TO_ALLOCATE_MEMORY;
+		}
+
+		gear_preprocessing_result_t result = gear_preprocess(fileData, fileDirectoryPath);
 		if (result.status) {
-			printf("Error: failed to preprocess `%s`!\n", argv[2]);
+			printf("Error: failed to preprocess `%s`!\n", fileDirectoryPath);
 			return result.status;
 		}
 
 		printf("%s\n", result.result);
+
+		free(fileDirectoryPath);
 		free(fileData);
+		gear_close_file(file);
 	}
 	else {
 		printf("Error: indefinite action `%s`!\n", argv[1]);

@@ -1,0 +1,40 @@
+Directives:
+	@dog
+	X@join Y
+	@preinc X
+	@rawinc X
+
+@dog:
+	Since the `@` character is used to specify preprocessor directives to insert it into the file text, the `@dog` directive was defined.
+	Note:
+		if you don't want to leave whitespace, add `@` after `@dog`.
+	Examples:
+		`@dog@preinc "LocalFilePath"` -> `@preinc "LocalFilePath"`
+		`@dog@ preinc "LocalFilePath"` -> `@preinc "LocalFilePath"`
+		`The @dog symbol is used for text preprocessing` -> `The @ symbol is used for text preprocessing`
+
+X@join Y:
+	Used to connect the left and right parts.
+	Examples:
+		`123@join 456` -> `123456`
+		`123@join456` -> ERROR!
+
+@preinc X:
+	Include preprocessed text file content.
+	Note:
+		X - file path, can be enclosed between "" or <>.
+		If the path is enclosed between "", then the file is searched in the folder of the file from which the request was made,
+		otherwise from the directories passed by the user.
+	Examples:
+		`@preinc "LocalFilePath"` -> included local file content
+		`@preinc <SpecFilePath>` -> included file content from specified directories
+
+@rawinc X:
+	Include text file content without preprocessing.
+	Note:
+		X - file path, can be enclosed between "" or <>.
+		If the path is enclosed between "", then the file is searched in the folder of the file from which the request was made,
+		otherwise from the directories passed by the user.
+	Examples:
+		`@rawinc "LocalFilePath"` -> included local file content
+		`@rawinc <SpecFilePath>` -> included file content from specified directories

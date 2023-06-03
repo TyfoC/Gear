@@ -11,6 +11,39 @@ char* gear_join_strings(const char* first, const char* second) {
 	return result;
 }
 
+size_t gear_find_substring(const char* source, const char* substring, size_t position) {
+	size_t srcLen = strlen(source), subLen = strlen(substring);
+	for (; position < srcLen; position++) if (!memcmp(&source[position], substring, subLen)) return position;
+	return GEAR_NPOS;
+}
+
+size_t gear_find_char(const char* source, char character, size_t position) {
+	size_t srcLen = strlen(source);
+	for (; position < srcLen; position++) if (source[position] == character) return position;
+	return GEAR_NPOS;
+}
+
+char* gear_get_substring(const char* source, size_t position, size_t count) {
+	size_t srcLen = strlen(source);
+	if (position + count > srcLen) return NULL;
+
+	char* substring = (char*)calloc(count + 1, sizeof(char));
+	if (!substring) return NULL;
+
+	memcpy(substring, &source[position], count);
+	substring[count] = 0;
+	return substring;
+}
+
+char* gear_copy_string(const char* source) {
+	size_t srcFullLen = strlen(source) + 1;
+	char* srcCopy = (char*)calloc(srcFullLen, sizeof(char));
+	if (!srcCopy) return NULL;
+
+	memcpy(srcCopy, source, srcFullLen);
+	return srcCopy;
+}
+
 unsigned char gear_is_operator(char value) {
 	switch(value) {
 		case '~':

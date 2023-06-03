@@ -1,3 +1,3 @@
 #include <gear-version.h>
 
-const char GearVersionString[] = "MV1.3.0";
+const char GearVersionString[] = "EE1.3.5";
