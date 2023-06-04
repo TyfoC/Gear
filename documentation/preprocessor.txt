@@ -6,6 +6,7 @@ Directives:
 	X@join Y
 	@preinc X
 	@rawinc X
+	@save {DATA, THAT WON'T BE CHANGED}
 
 @dog:
 	Since the `@` character is used to specify preprocessor directives to insert it into the file text, the `@dog` directive was defined.
@@ -41,3 +42,8 @@ X@join Y:
 	Examples:
 		`@rawinc "LocalFilePath"` -> included local file content
 		`@rawinc <SpecFilePath>` -> [N/A] included file content from specified directories
+
+@save:
+	Does not preprocess data inside braces
+	Examples:
+		`message = @save {"hello, world!";	// hello world, huh :D}` -> `message = "hello, world!";	// hello world, huh :D`
