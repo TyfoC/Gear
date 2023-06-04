@@ -1,183 +1,199 @@
 #include <gear-string.h>
 
-char* gear_join_strings(const char* first, const char* second) {
-	size_t firstLength = strlen(first);
-	size_t secondLength = strlen(second);
-	char* result = (char*)calloc(firstLength + secondLength + 1, sizeof(char));
-	if (!result) return NULL;
-
-	memcpy(result, first, firstLength);
-	memcpy(&result[firstLength], second, secondLength + 1);
-	return result;
+/**
+ * @brief Check if the value is whitespace symbol
+ * 
+ * @param value
+ * @return [gbool_t]
+ */
+gbool_t gis_space(char value) {
+	return value == ' ' || value == '\t' || value == '\v' || value == '\f';
 }
 
-size_t gear_find_substring(const char* source, const char* substring, size_t position) {
-	size_t srcLen = strlen(source), subLen = strlen(substring);
-	for (; position < srcLen; position++) if (!memcmp(&source[position], substring, subLen)) return position;
-	return GEAR_NPOS;
+/**
+ * @brief Check if the value is line break
+ * 
+ * @param value
+ * @return [gbool_t]
+ */
+gbool_t gis_line_break(char value) {
+	return value == '\r' || value == '\n';
 }
 
-size_t gear_find_char(const char* source, char character, size_t position) {
-	size_t srcLen = strlen(source);
-	for (; position < srcLen; position++) if (source[position] == character) return position;
-	return GEAR_NPOS;
+/**
+ * @brief Check if the value is digit
+ * 
+ * @param value
+ * @param base	
+ * @return [gbool_t]
+ */
+gbool_t gis_digit(char value, unsigned char base) {
+	if (base <= 10) return value >= '0' && value <= ('0' + (char)(base - 1));
+	if (value >= '0' && value <= '9') return TRUE;
+	return (value >= 'A' && value <= ('A' + (char)(base - 11))) || (value >= 'a' && value <= ('a' + (char)(base - 11)));
 }
 
-char* gear_get_substring(const char* source, size_t position, size_t count) {
-	size_t srcLen = strlen(source);
-	if (position + count > srcLen) return NULL;
-
-	char* substring = (char*)calloc(count + 1, sizeof(char));
-	if (!substring) return NULL;
-
-	memcpy(substring, &source[position], count);
-	substring[count] = 0;
-	return substring;
-}
-
-char* gear_copy_string(const char* source) {
-	size_t srcFullLen = strlen(source) + 1;
-	char* srcCopy = (char*)calloc(srcFullLen, sizeof(char));
-	if (!srcCopy) return NULL;
-
-	memcpy(srcCopy, source, srcFullLen);
-	return srcCopy;
-}
-
-unsigned char gear_is_operator(char value) {
+/**
+ * @brief Check if the value is operator
+ * 
+ * @param value
+ * @return [gbool_t]
+ */
+gbool_t gis_operator(char value) {
 	switch(value) {
-		case '~':
-		case '!':
-		case '@':
-		case '\"':
-		case '#':
-		case ';':
-		case '%':
-		case '^':
-		case ':':
-		case '&':
-		case '?':
-		case '*':
-		case '(':
-		case ')':
-		case '-':
+		case '`':
+		case '@': case '#': case '?':
 		case '=':
-		case '+':
-		case '{':
-		case '}':
-		case '[':
-		case ']':
-		case '\'':
-		case '\\':
-		case '|':
-		case ',':
-		case '.':
-		case '<':
-		case '>':
-		case '/':
-			return 1;
+		case '+': case '-': case '*': case '%':
+		case '!': case '&': case '^': case '~':
+		case '(': case ')': case '{': case '}': case '[': case ']': case '<': case '>':
+		case '|': case '\\': case '/':
+		case '\'': case '\"':
+		case ',': case '.': case ':': case ';':
+			return TRUE;
 	}
 
-	return 0;
+	return FALSE;
 }
 
-unsigned char gear_is_digit(char value) {
-	switch(value) {
-		case '0':
-		case '1':
-		case '2':
-		case '3':
-		case '4':
-		case '5':
-		case '6':
-		case '7':
-		case '8':
-		case '9':
-			return 1;
-	}
-	
-	return 0;
+/**
+ * @brief Check if the value is letter
+ * 
+ * @param value 
+ * @return [gbool_t] 
+ */
+gbool_t gis_letter(char value) {
+	return !(gis_space(value) || gis_line_break(value) || gis_digit(value, 10) || gis_operator(value));
 }
 
-unsigned char gear_is_space(char value) {
-	switch(value) {
-		case ' ':
-		case '\t':
-		case '\v':
-		case '\f':
-			return 1;
-	}
-
-	return 0;
+/**
+ * @brief Check if the value is redundant (whitespace or line break)
+ * 
+ * @param value 
+ * @return [gbool_t] 
+ */
+gbool_t gis_redundant(char value) {
+	return gis_space(value) || gis_line_break(value);
 }
 
-unsigned char gear_is_line_break(char value) {
-	switch(value) {
-		case '\r':
-		case '\n':
-			return 1;
-	}
+size_t gget_line_length(const char* source, size_t lineBeginPosition) {
+	size_t length = (size_t)strlen(source);
+	if (lineBeginPosition >= length) return 0;
 
-	return 0;
-}
-
-unsigned char gear_is_redundant(char value) {
-	return gear_is_space(value) || gear_is_line_break(value);
-}
-
-unsigned char gear_is_alpha(char value) {
-	return !gear_is_operator(value) && !gear_is_space(value) && !gear_is_line_break(value);
-}
-
-unsigned char gear_is_letter(char value) {
-	return !gear_is_operator(value) && !gear_is_digit(value) && !gear_is_space(value) && !gear_is_line_break(value);
-}
-
-unsigned char gear_resize_string(char** source, size_t newLength) {
-	return gear_resize_array((void**)source, newLength + 1);
-}
-
-unsigned char gear_append_string(char** destination, const char* source) {
-	return gear_append_array((void**)destination, source, strlen(*destination), strlen(source) + 1);
-}
-
-unsigned char gear_append_letters(char** destination, const char* letters, size_t count) {
-	size_t destLength = strlen(*destination);
-	if (!gear_resize_array((void**)destination, destLength + count + 1)) return 0;
-
-	memcpy(&(*destination)[destLength], letters, count);
-	(*destination)[destLength + count] = 0;
-	return 1;
-}
-
-size_t gear_get_redundant_length(const char* source) {
-	size_t result = 0, length = strlen(source);
-	while (result < length && gear_is_redundant(source[result])) result += 1;
-	return result;
-}
-
-size_t gear_get_identifier_length(const char* source) {
-	if (!gear_is_letter(source[0])) return 0;
-
-	size_t result = 1, length = strlen(source);
-	while (result < length && gear_is_alpha(source[result])) result += 1;
-	return result;
-}
-
-size_t gear_get_string_literal_length(const char* source, char limiter) {
-	if (!source || source[0] != limiter) return 0;
-
-	size_t result = 1, length = strlen(source);
-	while (result < length) {
-		if (source[result] == limiter && source[result - 1] != '\\') return result + 1;
+	size_t result = 0;
+	for (; lineBeginPosition < length; lineBeginPosition++) {
+		if (gis_line_break(source[lineBeginPosition])) break;
 		result += 1;
 	}
-
+	
 	return result;
 }
 
-size_t gear_get_count_before_line_break(const char* source) {
-	size_t length = strlen(source), count = 0;
-	while (count < length && !gear_is_line_break(source[count])) count += 1;
-	return count;
+size_t gfind_substring(const char* source, const char* substring, size_t position) {
+	size_t length = (size_t)strlen(source), subLength = (size_t)strlen(substring);
+	if (position >= length) return NPOS;
+
+	while (position < length) {
+		if (!memcmp(&source[position], substring, subLength)) return position;
+		position += 1;
+	}
+
+	return NPOS;
+}
+
+char* gcopy_string(const char* source) {
+	size_t length = strlen(source) + 1;
+	char* result = (char*)calloc(length, sizeof(char));
+	if (!result) return NULL;
+	
+	memcpy(result, source, length);
+	return result;
+}
+
+char* gcopy_substring(const char* source, size_t position, size_t count) {
+	size_t length = strlen(source);
+	if (position + count > length) return NULL;
+
+	char* result = (char*)calloc(count + 1, sizeof(char));
+	if (!result) return NULL;
+
+	memcpy(result, &source[position], count);
+	result[count] = 0;
+	return result;
+}
+
+char* gint_to_string(ptrdiff_t value, uint8_t radix) {
+	size_t length = gget_int_digits_count(value, radix);
+	char* result = (char*)calloc(length + 1, sizeof(char));
+	if (!result) return NULL;
+
+	sprintf(result, "%d", (int)value);
+	return result;
+}
+
+char* gappend_string(char* destination, const char* source) {
+	size_t destLen = destination ? strlen(destination) : 0, srcLen = source ? strlen(source) : 0;
+	size_t finalLen = destLen + srcLen + 1;
+	
+	char* result;
+	if (destination) result = (char*)realloc(destination, finalLen);
+	else result = (char*)malloc(finalLen);
+	if (!result) return NULL;
+
+	if (source) strcat(result, source);
+	return result;
+}
+
+char* gappend_substring(char* destination, const char* source, size_t position, size_t count) {
+	size_t destLen = strlen(destination), srcLen = strlen(source);
+	size_t finalSize = destLen + count + 1;
+	if (position + count > srcLen) return NULL;
+
+	char* result = (char*)realloc(destination, finalSize);
+	if (!result) return NULL;
+
+	memcpy(&result[destLen], &source[position], count);
+	result[finalSize - 1] = 0;
+	return result;
+}
+
+size_t gget_nesting_length(const char* source, size_t position, const char* leftLimiter, const char* rightLimiter) {
+	size_t length = strlen(source), leftLimiterLength = strlen(leftLimiter), rightLimiterLength = strlen(rightLimiter);
+	if (position >= length) return NPOS;
+
+	size_t level = 0, count = 0;
+	for (; position < length; position++, count++) {
+		if (!memcmp(&source[position], leftLimiter, leftLimiterLength)) level += 1;
+		else if (!memcmp(&source[position], rightLimiter, rightLimiterLength)) {
+			if (!level) break;
+			if (level == 1) return count + rightLimiterLength;
+			level -= 1;
+		}
+	}
+
+	return NPOS;
+}
+
+/**
+ * @brief /path/to/file.txt -> /path/to/
+ * 
+ * @param filePath 
+ * @return char* 
+ */
+char* gget_file_path_directory(const char* filePath) {
+	size_t length = strlen(filePath);
+	size_t limiterPos = length;
+	do {
+		if (filePath[limiterPos] == '/' || filePath[limiterPos] == '\\') break;
+		limiterPos -= 1;
+	} while (limiterPos < length);
+
+	if (limiterPos >= length) limiterPos = 1;
+
+	char* result = (char*)calloc(limiterPos + 2, sizeof(char));
+	if (!result) return NULL;
+
+	memcpy(result, filePath, limiterPos + 1);
+	result[limiterPos + 1] = 0;
+	return result;
 }

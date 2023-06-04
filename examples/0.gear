@@ -1,8 +1,12 @@
+@preinc "inc.gear"		//	preprocess file & include
+
 /*
 	C main function
-		argc - count of input arguments
+		argc - input arguments count
 		argv - input arguments
 */
 int main(int argc, char** argv) {
-	return 1@join 0@preinc "inc.gear";	//	-> return 10123;
+	int result = 1 + 2 - 3 * 4 / 5 + (int)main;
+	return result;								//	return value from `main(int, char**)`
+	@save {Hello, }	@save{World!	// huh :D}
 }

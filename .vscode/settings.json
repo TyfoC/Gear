@@ -3,7 +3,19 @@
 		"gear-string.h": "c",
 		"string": "c",
 		"string_view": "c",
-		"functional": "c"
+		"functional": "c",
+		"string.h": "c",
+		"system_error": "c",
+		"array": "c",
+		"tuple": "c",
+		"type_traits": "c",
+		"utility": "c",
+		"gear-grammar.h": "c",
+		"gear-preprocessor.h": "c",
+		"gear-typedefs.h": "c",
+		"stdlib.h": "c",
+		"gear-int.h": "c",
+		"gear-formatter.h": "c"
 	},
 	"cmake.configureOnOpen": true
 }

@@ -12,15 +12,16 @@
 #define GEAR_FILE_MODE_WRITE	8
 #define GEAR_FILE_IS_OPEN(...)	((__VA_ARGS__).handle != NULL)
 
-typedef struct gear_file_t {
-	char*			path;
-	unsigned char	mode;
-	FILE*			handle;
-} gear_file_t;
+typedef struct gfile_t {
+	char*	path;
+	uint8_t	mode;
+	FILE*	handle;
+} gfile_t;
 
-gear_file_t gear_open_file(const char* path, unsigned char mode);
-void gear_close_file(gear_file_t value);
-size_t gear_get_file_size(const gear_file_t value);
-char* gear_read_file(const gear_file_t value);
+gfile_t gopen_file(const char* path, uint8_t mode);
+void gclose_file(gfile_t value);
+size_t gget_file_size(const gfile_t value);
+char* gread_file(const gfile_t value);
+gbool_t gwrite_file_string(const gfile_t value, const char* source);
 
 #endif

@@ -1,12 +1,12 @@
 #pragma once
 #ifndef GEAR_ARRAY
-#define GEAR_ARRAY
 
-#include <string.h>
 #include <malloc.h>
+#include <string.h>
 #include "gear-typedefs.h"
 
-unsigned char gear_resize_array(void** source, size_t size);
-unsigned char gear_append_array(void** destination, const void* source, size_t destinationLength, size_t sourceLength);
+void* gcreate_array(size_t numberOfElements, size_t elementSize, const void* dataToCopy);
+void* gresize_array(void* source, size_t elementSize, size_t destNumberOfElements);
+void* gappend_array(void* destination, const void* source, size_t elemSize, size_t destLength, size_t srcLength);
 
 #endif

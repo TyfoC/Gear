@@ -1,16 +1,19 @@
 #include <gear-file.h>
 
-gear_file_t gear_open_file(const char* path, unsigned char mode) {
-	gear_file_t result;
+gfile_t gopen_file(const char* path, uint8_t mode) {
+	gfile_t result;
 	char modeString[3] = { mode & GEAR_FILE_MODE_WRITE ? 'w' : 'r', mode & GEAR_FILE_MODE_BINARY ? 'b' : 0, 0 };
 	if (!(result.handle = fopen(path, modeString))) return result;
 
-	result.path = gear_copy_string(path);
+	size_t pathLen = strlen(path);
+	result.path = calloc(pathLen + 1, sizeof(char));
+	memcpy(result.path, path, pathLen + 1);
+	
 	result.mode = mode;
 	return result;
 }
 
-void gear_close_file(gear_file_t value) {
+void gclose_file(gfile_t value) {
 	if (value.path) free(value.path);
 	if (value.handle) {
 		fclose(value.handle);
@@ -18,8 +21,8 @@ void gear_close_file(gear_file_t value) {
 	}
 }
 
-size_t gear_get_file_size(const gear_file_t value) {
-	if (!GEAR_FILE_IS_OPEN(value)) return GEAR_NPOS;
+size_t gget_file_size(const gfile_t value) {
+	if (!GEAR_FILE_IS_OPEN(value)) return NPOS;
 
 	long pos = ftell(value.handle);
 	fseek(value.handle, 0, SEEK_END);
@@ -28,18 +31,25 @@ size_t gear_get_file_size(const gear_file_t value) {
 	return result;
 }
 
-char* gear_read_file(const gear_file_t value) {
+char* gread_file(const gfile_t value) {
 	if (!GEAR_FILE_IS_OPEN(value)) return NULL;
 
-	size_t fileSize = gear_get_file_size(value);
-	if (fileSize == GEAR_NPOS) return NULL;
+	size_t fileSize = gget_file_size(value);
+	if (fileSize == NPOS) return NULL;
 
 	char* result = (char*)calloc(fileSize + (value.mode & GEAR_FILE_MODE_BINARY ? 0 : 1), sizeof(char));
 	if (!result) return NULL;
 
 	size_t cntRead = fread(result, sizeof(char), fileSize, value.handle);
-	GEAR_UNREFERENCED(cntRead);
+	HIDE(cntRead);
 
 	if (value.mode & GEAR_FILE_MODE_BINARY) result[fileSize] = 0;
 	return result;
+}
+
+gbool_t gwrite_file_string(const gfile_t value, const char* source) {
+	if (!GEAR_FILE_IS_OPEN(value)) return FALSE;
+
+	fputs(source, value.handle);
+	return TRUE;
 }
