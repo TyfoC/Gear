@@ -9,9 +9,9 @@ void print_help(void) {
 	printf("\tinfo - show version info\n");
 	printf("\thelp - show help\n");
 	printf("\tlex - generate lexeme table\n");
-	printf("\t[N/A] preprocess - preprocess input files\n");
+	printf("\tpreprocess - preprocess input files\n");
 	printf("Flags:\n");
-	printf("\t[N/A] -I <include dir path> - include directory\n");
+	printf("\t-I <include dir path> - include directory\n");
 	printf("\t-o - select output file path\n");
 }
 
@@ -22,6 +22,8 @@ int main(int argc, char** argv) {
 	char** inputPaths = (char**)malloc(0);
 	size_t inputPathsCount = 0;
 	char* outputFilePath = 0;
+	char** inputDirectoryPaths = (char**)malloc(0);
+	size_t inputDirectoryPathsCount = 0;
 
 	void* tmp;
 	for (size_t i = 1; i < (size_t)argc; i++) {
@@ -35,14 +37,43 @@ int main(int argc, char** argv) {
 			outputFilePath = argv[i + 1];
 			i += 1;
 		}
-		else {
-			tmp = (char**)gresize_array(inputPaths, sizeof(char*), inputPathsCount + 1);
+		else if (!strcmp(argv[i], "-I")) {
+			if (i >= (size_t)argc - 1) break;
+			tmp = gresize_array(inputDirectoryPaths, sizeof(char*), inputDirectoryPathsCount + 1);
 			if (!tmp) {
 				printf("Error: not enough memory!\n");
 				return GEAR_STATUS_FAILED_TO_ALLOCATE_MEMORY;
 			}
 
-			inputPaths = tmp;
+			inputDirectoryPaths = (char**)tmp;
+			inputDirectoryPaths[inputDirectoryPathsCount] = gcopy_string(argv[i + 1]);
+			if (!inputDirectoryPaths[inputDirectoryPathsCount]) {
+				printf("Error: not enough memory!\n");
+				return GEAR_STATUS_FAILED_TO_ALLOCATE_MEMORY;
+			}
+
+			size_t tmpLen = strlen(inputDirectoryPaths[inputDirectoryPathsCount]);
+			if (inputDirectoryPaths[inputDirectoryPathsCount][tmpLen - 1] != '/') {
+				tmp = (void*)gappend_string(inputDirectoryPaths[inputDirectoryPathsCount], "/");
+				if (!tmp) {
+					printf("Error: not enough memory!\n");
+					return GEAR_STATUS_FAILED_TO_ALLOCATE_MEMORY;
+				}
+
+				inputDirectoryPaths[inputDirectoryPathsCount] = (char*)tmp;
+			}
+
+			inputDirectoryPathsCount += 1;
+			i += 1;
+		}
+		else {
+			tmp = gresize_array(inputPaths, sizeof(char*), inputPathsCount + 1);
+			if (!tmp) {
+				printf("Error: not enough memory!\n");
+				return GEAR_STATUS_FAILED_TO_ALLOCATE_MEMORY;
+			}
+
+			inputPaths = (char**)tmp;
 			inputPaths[inputPathsCount] = argv[i];
 			inputPathsCount += 1;
 		}
@@ -79,14 +110,14 @@ int main(int argc, char** argv) {
 			printf("Error: unresolved expression at %u!\n", (unsigned int)unresolvedExprPos);
 			free(result);
 			free(fileData);
-			gclose_file(file);
+			gclose_file(&file);
 			return GEAR_STATUS_UNRESOLVED_EXPRESSION;
 		}
 
 		char* formattedOutput = gformat_lexemes(fileData, result, lexemesCount);
 		free(result);
 		free(fileData);
-		gclose_file(file);
+		gclose_file(&file);
 
 		if (outputFilePath) {
 			file = gopen_file(outputFilePath, GEAR_FILE_MODE_WRITE | GEAR_FILE_MODE_TEXT);
@@ -96,7 +127,7 @@ int main(int argc, char** argv) {
 				return GEAR_STATUS_FAILED_TO_OPEN_FILE;
 			}
 
-			gclose_file(file);
+			gclose_file(&file);
 		}
 		else printf("%s", formattedOutput);
 
@@ -126,18 +157,18 @@ int main(int argc, char** argv) {
 			return GEAR_STATUS_FAILED_TO_ALLOCATE_MEMORY;
 		}
 
-		gpreprocessing_result_t result = gpreprocess(fileData, fileDirectoryPath);
+		gpreprocessing_result_t result = gpreprocess(fileData, fileDirectoryPath, (const char**)&inputDirectoryPaths[0], inputDirectoryPathsCount);
 		if (!result.completed_successfully) {
 			free(fileDirectoryPath);
 			free(fileData);
-			gclose_file(file);
+			gclose_file(&file);
 			printf("Error: failed to preprocess `%s`!\n", inputPaths[0]);
 			return GEAR_STATUS_FAILED_TO_PREPROCESS;
 		}
 
 		free(fileDirectoryPath);
 		free(fileData);
-		gclose_file(file);
+		gclose_file(&file);
 
 		if (outputFilePath) {
 			file = gopen_file(outputFilePath, GEAR_FILE_MODE_WRITE | GEAR_FILE_MODE_TEXT);
@@ -147,55 +178,11 @@ int main(int argc, char** argv) {
 				return GEAR_STATUS_FAILED_TO_OPEN_FILE;
 			}
 
-			gclose_file(file);
+			gclose_file(&file);
 		}
 		else printf("%s", result.output);
 
 		free(result.output);
-	}
-
-	/*
-	else if (!strcmp(argv[1], "preprocess")) {
-		if (argc < 3) {
-			printf("Error: missing file path!\n");
-			return GEAR_STATUS_MISSING_FILE_PATH;
-		}
-
-		gear_file_t file = gear_open_file(argv[2], GEAR_FILE_MODE_READ | GEAR_FILE_MODE_TEXT);
-		if (!GEAR_FILE_IS_OPEN(file)) {
-			printf("Error: failed to open `%s`!\n", argv[2]);
-			return GEAR_STATUS_FAILED_TO_OPEN_FILE;
-		}
-
-		char* fileData = gear_read_file(file);
-		if (!fileData) {
-			printf("Error: failed to read `%s`!\nPossible causes: file does not exist/file cannot be read/not enough memory\n", argv[2]);
-			return GEAR_STATUS_FAILED_TO_READ_FILE;
-		}
-
-		char* fileDirectoryPath = gear_get_file_path_directory(argv[2]);
-		if (!fileDirectoryPath) {
-			printf("Error: cannot get directory path from file path (not enough memory)!\n");
-			return GEAR_STATUS_FAILED_TO_ALLOCATE_MEMORY;
-		}
-
-		gear_preprocessing_result_t result = gear_preprocess(fileData, fileDirectoryPath);
-		if (result.status) {
-			printf("Error: failed to preprocess `%s`!\n", argv[2]);
-			return result.status;
-		}
-
-		printf("%s\n", result.result);
-
-		free(fileDirectoryPath);
-		free(fileData);
-		gear_close_file(file);
-	}
-	*/
-
-	else {
-		printf("Error: indefinite action `%s`!\n", argv[1]);
-		return GEAR_STATUS_UNKNOWN_ACTION;
 	}
 
 	return GEAR_STATUS_SUCCESS;

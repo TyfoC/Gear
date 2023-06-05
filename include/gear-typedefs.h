@@ -13,8 +13,8 @@
 #include <stdint.h>
 #include <stddef.h>
 
-#define GEAR_VERSION		0x01'04'00			//	1.4.0
-#define GEAR_VERSION_STRING	"1.4.0"
+#define GEAR_VERSION		0x01'04'02			//	1.4.2
+#define GEAR_VERSION_STRING	"1.4.2"
 
 #ifndef NPOS
 #define NPOS				((long unsigned int)-1)

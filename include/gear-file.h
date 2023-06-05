@@ -19,7 +19,7 @@ typedef struct gfile_t {
 } gfile_t;
 
 gfile_t gopen_file(const char* path, uint8_t mode);
-void gclose_file(gfile_t value);
+void gclose_file(gfile_t* value);
 size_t gget_file_size(const gfile_t value);
 char* gread_file(const gfile_t value);
 gbool_t gwrite_file_string(const gfile_t value, const char* source);

@@ -1,6 +1,11 @@
 #include <gear-preprocessor.h>
 
-gpreprocessing_result_t gpreprocess(const char* source, const char* srcFileDirectoryPath) {
+gpreprocessing_result_t gpreprocess(
+	const char* source,
+	const char* srcFileDirectoryPath,
+	const char** inputDirectoryPaths,
+	size_t inputDirectoryPathsCount
+) {
 	gpreprocessing_result_t result = { TRUE, (char*)malloc(1) };
 	result.output[0] = 0;
 
@@ -88,30 +93,87 @@ gpreprocessing_result_t gpreprocess(const char* source, const char* srcFileDirec
 					if (lexeme.group == GEAR_GRAMMAR_GROUP_REDUNDANT) position += lexeme.length;
 				} while (lexeme.group == GEAR_GRAMMAR_GROUP_REDUNDANT);
 
-				if (lexeme.type != GEAR_GRAMMAR_TYPE_STRING_LITERAL) {
-					if (result.output) free(result.output);
-					result.completed_successfully = FALSE;
-					return result;
-				}
+				char* filePath = 0;
+				gfile_t handle;
+				if (lexeme.type == GEAR_GRAMMAR_TYPE_STRING_LITERAL) {
+					tmp = gcopy_string(srcFileDirectoryPath);
+					if (!tmp) {
+						if (result.output) free(result.output);
+						result.completed_successfully = FALSE;
+						return result;
+					}
 
-				tmp = gcopy_string(srcFileDirectoryPath);
-				if (!tmp) {
-					if (result.output) free(result.output);
-					result.completed_successfully = FALSE;
-					return result;
-				}
+					filePath = gappend_substring(tmp, source, position + 1, lexeme.length - 2);
+					if (!filePath) {
+						free(tmp);
+						if (result.output) free(result.output);
+						result.completed_successfully = FALSE;
+						return result;
+					}
 
-				char* filePath = gappend_substring(tmp, source, position + 1, lexeme.length - 2);
-				if (!filePath) {
-					free(tmp);
-					if (result.output) free(result.output);
-					result.completed_successfully = FALSE;
-					return result;
-				}
-
-				gfile_t handle = gopen_file(filePath, GEAR_FILE_MODE_READ | GEAR_FILE_MODE_TEXT);
-				if (!GEAR_FILE_IS_OPEN(handle)) {
+					handle = gopen_file(filePath, GEAR_FILE_MODE_READ | GEAR_FILE_MODE_TEXT);
 					free(filePath);
+					if (!GEAR_FILE_IS_OPEN(handle)) {
+						if (result.output) free(result.output);
+						result.completed_successfully = FALSE;
+						return result;
+					}
+				}
+				else if (lexeme.type == GEAR_GRAMMAR_TYPE_OPERATOR_LESS_THAN) {
+					if ((position += lexeme.length) >= length) {
+						gclose_file(&handle);
+						if (result.output) free(result.output);
+						result.completed_successfully = FALSE;
+						return result;
+					}
+
+					size_t rightLimiterIndex = gfind_grammar_index_by_type(GEAR_GRAMMAR_TYPE_OPERATOR_GREATER_THAN);
+					if (rightLimiterIndex == NPOS) {
+						gclose_file(&handle);
+						if (result.output) free(result.output);
+						result.completed_successfully = FALSE;
+						return result;
+					}
+
+					size_t nextPosition = gfind_substring(source, GearGrammar[rightLimiterIndex].pattern, position);
+					if (nextPosition == NPOS) {
+						gclose_file(&handle);
+						if (result.output) free(result.output);
+						result.completed_successfully = FALSE;
+						return result;
+					}
+
+					size_t filePathLength = nextPosition - position;
+					for (size_t i = 0; i < inputDirectoryPathsCount; i++) {
+						tmp = gcopy_string(inputDirectoryPaths[i]);
+						if (!tmp) {
+							if (result.output) free(result.output);
+							result.completed_successfully = FALSE;
+							return result;
+						}
+
+						filePath = gappend_substring(tmp, source, position, filePathLength);
+						if (!filePath) {
+							free(tmp);
+							if (result.output) free(result.output);
+							result.completed_successfully = FALSE;
+							return result;
+						}
+
+						handle = gopen_file(filePath, GEAR_FILE_MODE_READ | GEAR_FILE_MODE_TEXT);
+						free(filePath);
+						if (GEAR_FILE_IS_OPEN(handle)) break;
+					}
+
+					if (!GEAR_FILE_IS_OPEN(handle)) {
+						if (result.output) free(result.output);
+						result.completed_successfully = FALSE;
+						return result;
+					}
+
+					lexeme.length = filePathLength + strlen(GearGrammar[rightLimiterIndex].pattern);
+				}
+				else {
 					if (result.output) free(result.output);
 					result.completed_successfully = FALSE;
 					return result;
@@ -119,30 +181,25 @@ gpreprocessing_result_t gpreprocess(const char* source, const char* srcFileDirec
 
 				char* fileData = gread_file(handle);
 				if (!fileData) {
-					gclose_file(handle);
-					free(filePath);
+					gclose_file(&handle);
 					if (result.output) free(result.output);
 					result.completed_successfully = FALSE;
 					return result;
 				}
 
-				gclose_file(handle);
-
 				if (preprocessFileBeforeAppend) {
-					char* subFileDirPath = gget_file_path_directory(filePath);
+					char* subFileDirPath = gget_file_path_directory(handle.path);
 					if (!subFileDirPath) {
 						free(fileData);
-						free(filePath);
 						if (result.output) free(result.output);
 						result.completed_successfully = FALSE;
 						return result;
 					}
 
-					gpreprocessing_result_t subResult = gpreprocess(fileData, subFileDirPath);
+					gpreprocessing_result_t subResult = gpreprocess(fileData, subFileDirPath, inputDirectoryPaths, inputDirectoryPathsCount);
 					if (!subResult.completed_successfully) {
 						free(subFileDirPath);
 						free(fileData);
-						free(filePath);
 						if (result.output) free(result.output);
 						result.completed_successfully = FALSE;
 						return result;
@@ -154,16 +211,16 @@ gpreprocessing_result_t gpreprocess(const char* source, const char* srcFileDirec
 				}
 				else tmp = gappend_string(result.output, fileData);
 
+				gclose_file(&handle);
+
 				if (!tmp) {
 					free(fileData);
-					free(filePath);
 					if (result.output) free(result.output);
 					result.completed_successfully = FALSE;
 					return result;
 				}
 
 				free(fileData);
-				free(filePath);
 
 				result.output = tmp;
 			}

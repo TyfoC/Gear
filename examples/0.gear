@@ -1,4 +1,5 @@
 @preinc "inc.gear"		//	preprocess file & include
+@preinc <inc.gear>
 
 /*
 	C main function

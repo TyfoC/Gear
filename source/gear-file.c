@@ -13,11 +13,11 @@ gfile_t gopen_file(const char* path, uint8_t mode) {
 	return result;
 }
 
-void gclose_file(gfile_t value) {
-	if (value.path) free(value.path);
-	if (value.handle) {
-		fclose(value.handle);
-		value.handle = 0;
+void gclose_file(gfile_t* value) {
+	if (value->path) free(value->path);
+	if (value->handle) {
+		fclose(value->handle);
+		value->handle = 0;
 	}
 }
 

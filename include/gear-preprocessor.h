@@ -10,6 +10,11 @@ typedef struct gpreprocessing_result_t {
 	char*	output;
 } gpreprocessing_result_t;
 
-gpreprocessing_result_t gpreprocess(const char* source, const char* srcFileDirectoryPath);
+gpreprocessing_result_t gpreprocess(
+	const char* source,
+	const char* srcFileDirectoryPath,
+	const char** inputDirectoryPaths,
+	size_t inputDirectoryPathsCount
+);
 
 #endif
