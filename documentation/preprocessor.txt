@@ -26,22 +26,22 @@ X@join Y:
 @preinc X:
 	Include preprocessed text file content.
 	Note:
-		X - file path, can be enclosed between "" or <>[N/A].
+		X - file path, can be enclosed between "" or <>.
 		If the path is enclosed between "", then the file is searched in the folder of the file from which the request was made,
-		otherwise[N/A] from the directories passed by the user.
+		otherwise from the directories passed by the user.
 	Examples:
 		`@preinc "LocalFilePath"` -> included local file content
-		`@preinc <SpecFilePath>` -> [N/A] included file content from specified directories
+		`@preinc <SpecFilePath>` -> included file content from specified directories
 
 @rawinc X:
 	Include text file content without preprocessing.
 	Note:
-		X - file path, can be enclosed between "" or <>[N/A].
+		X - file path, can be enclosed between "" or <>.
 		If the path is enclosed between "", then the file is searched in the folder of the file from which the request was made,
-		otherwise[N/A] from the directories passed by the user.
+		otherwise from the directories passed by the user.
 	Examples:
 		`@rawinc "LocalFilePath"` -> included local file content
-		`@rawinc <SpecFilePath>` -> [N/A] included file content from specified directories
+		`@rawinc <SpecFilePath>` -> included file content from specified directories
 
 @save:
 	Does not preprocess data inside braces
