@@ -1,0 +1,20 @@
+@preinc "inc1.gear"		//	preprocess file & include
+@preinc <inc2.gear>
+
+@save {
+	This data will not be changed!
+	//	And this
+	/*
+		Also this
+	*/
+}
+
+/*
+	C main function
+		argc - input arguments count
+		argv - input arguments
+*/
+int main(int argc, char** argv) {
+	@op@ "";
+	return 0;
+}
