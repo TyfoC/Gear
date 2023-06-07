@@ -7,6 +7,8 @@ Directives:
 	@preinc X
 	@rawinc X
 	@save {DATA, THAT WON'T BE CHANGED}
+	@def
+	@undef
 
 @op:
 	Since the `@` character is used to specify preprocessor directives to insert it into the file text, the `@op` directive was defined.
