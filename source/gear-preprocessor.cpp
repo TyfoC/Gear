@@ -220,18 +220,18 @@ Gear::PreprocessingResult_t Gear::Preprocess(
 					return result;
 				}
 
-				std::string macroName = source.substr(lexeme.Position, lexeme.Length);
-				size_t macroIndex = GetMacroIndex(macros, macroName);
+				size_t macroIndex = GetMacroIndex(macros, lexeme.Value);
 				if (macroIndex == std::string::npos) {
 					strPos = GetLineColumnByPosition(source, i);
 					result.Messages.push_back({
 						MessageType::WARNING,
-						"macro `" + macroName + "` cannot be undefined because it was not defined",
+						"macro `" + lexeme.Value + "` cannot be undefined because it was not defined",
 						strPos.Line,
 						strPos.Column,
 						i
 					});
 				}
+				else macros.erase(macros.begin() + macroIndex);
 
 				i += lexeme.Length;
 			}
@@ -240,6 +240,83 @@ Gear::PreprocessingResult_t Gear::Preprocess(
 				result.Messages.push_back({ MessageType::ERROR, "unknown preprocessor directive", strPos.Line, strPos.Column, i });
 				return result;
 			}
+		}
+		else if (lexeme.Type == GrammarType::IDENTIFIER) {
+			std::string name = source.substr(lexeme.Position, lexeme.Length);
+			size_t macroIndex = GetMacroIndex(macros, name);
+			if (macroIndex == std::string::npos) {
+				result.Output += name;
+				i += lexeme.Length;
+				continue;
+			}
+
+			if (GetLexemeIndex(macros[macroIndex].Expression, name) != std::string::npos) {
+				strPos = GetLineColumnByPosition(source, i);
+				result.Messages.push_back({ MessageType::ERROR, "macro name found in its expression", strPos.Line, strPos.Column, i });
+				return result;
+			}
+
+			if (macros[macroIndex].IsFunction) {
+				if ((i += lexeme.Length) >= length) {
+					strPos = GetLineColumnByPosition(source, i);
+					result.Messages.push_back({ MessageType::ERROR, "missing function macro arguments", strPos.Line, strPos.Column, i });
+					return result;
+				}
+
+				do {
+					lexeme = GetLexeme(source, i);
+					if (lexeme.Group == GrammarGroup::REDUNDANT) i += lexeme.Length;
+				} while (i < length && lexeme.Group == GrammarGroup::REDUNDANT);
+
+				if (lexeme.Type != GrammarType::OPENING_PARENTHESIS_OPERATOR) {
+					strPos = GetLineColumnByPosition(source, i);
+					result.Messages.push_back({ MessageType::ERROR, "missing function macro arguments", strPos.Line, strPos.Column, i });
+					return result;
+				}
+
+				std::vector<std::vector<Lexeme_t> > arguments;
+				if (!GetArgumentsFromNestedExpression(source, i, arguments)) {
+					strPos = GetLineColumnByPosition(source, i);
+					result.Messages.push_back({ MessageType::ERROR, "incorrect use of a macro", strPos.Line, strPos.Column, i });
+					return result;
+				}
+
+				size_t nestingLength = GetNestingLength(
+					source,
+					i,
+					GrammarType::OPENING_PARENTHESIS_OPERATOR,
+					GrammarType::CLOSING_PARENTHESIS_OPERATOR,
+					false
+				);
+
+				std::vector<Lexeme_t> exprResult;
+				if (
+					nestingLength == std::string::npos ||
+					!ExpandExpression(source, macros[macroIndex].Expression, arguments, macros[macroIndex].Parameters, macros, exprResult)
+				) {
+					strPos = GetLineColumnByPosition(source, i);
+					result.Messages.push_back({ MessageType::ERROR, "incorrect use of a macro", strPos.Line, strPos.Column, i });
+					return result;
+				}
+
+				for (const Lexeme_t &lex : exprResult) {
+					if (lex.Length == 0) result.Output += std::to_string(lex.Position);
+					else result.Output += lex.Value;
+				}
+				i += nestingLength;
+			}
+			else {
+				std::vector<Lexeme_t> exprResult;
+				if (!ExpandExpression(source, macros[macroIndex].Expression, {}, macros[macroIndex].Parameters, macros, exprResult)) {
+					strPos = GetLineColumnByPosition(source, i);
+					result.Messages.push_back({ MessageType::ERROR, "incorrect use of a macro", strPos.Line, strPos.Column, i });
+					return result;
+				}
+
+				for (const Lexeme_t &lex : exprResult) result.Output += lex.Value;
+				i += lexeme.Length;
+			}
+
 		}
 		else {
 			if (lexeme.Type != GrammarType::COMMENT) result.Output += source.substr(i, lexeme.Length);
@@ -259,7 +336,7 @@ size_t Gear::CreateMacro(const std::string source, size_t namePosition, Macro_t 
 	if (lexeme.Group != GrammarGroup::IDENTIFIER) return std::string::npos;
 
 	size_t position = namePosition;
-	result.Name = source.substr(position, lexeme.Length);
+	result.Name = lexeme.Value;
 	position += lexeme.Length;
 	lexeme = GetLexeme(source, position);
 	result.IsFunction = lexeme.Type == GrammarType::OPENING_PARENTHESIS_OPERATOR;
@@ -277,6 +354,7 @@ size_t Gear::CreateMacro(const std::string source, size_t namePosition, Macro_t 
 					if (identifierAdded) return std::string::npos;
 					result.Parameters.push_back(lexVec[i]);
 					identifierAdded = true;
+					if (lexVec[i].Type == GrammarType::ELLIPSIS_OPERATOR) break;
 				}
 				else if (lexVec[i].Group != GrammarGroup::REDUNDANT) return std::string::npos;
 			}
@@ -314,6 +392,7 @@ size_t Gear::CreateMacro(const std::string source, size_t namePosition, Macro_t 
 
 	while (position < closingLimiterPosition) {
 		lexeme = GetLexeme(source, position);
+		if (lexeme.Value == result.Name) return std::string::npos;
 		if (lexeme.Type != GrammarType::COMMENT) result.Expression.push_back(lexeme);
 		position += lexeme.Length;
 	}
@@ -326,4 +405,111 @@ size_t Gear::GetMacroIndex(const std::vector<Macro_t> macros, const std::string 
 	size_t count = macros.size();
 	for (size_t i = 0; i < count; i++) if (macros[i].Name == name) return i;
 	return std::string::npos;
+}
+
+bool Gear::ExpandExpression(
+	const std::string source,
+	const std::vector<Lexeme_t> expression,
+	const std::vector<std::vector<Lexeme_t> > arguments,
+	const std::vector<Lexeme_t> parameters,
+	const std::vector<Macro_t> macros,
+	std::vector<Lexeme_t> &result
+) {
+	std::string value;
+	size_t count = expression.size();
+	size_t argsCount = arguments.size();
+	for (size_t i = 0; i < count; i++) {
+		value = expression[i].Value;
+		if (expression[i].Group == GrammarGroup::IDENTIFIER) {
+			size_t index = GetMacroIndex(macros, value);
+			if (index == std::string::npos) {
+				index = GetLexemeIndex(parameters, value);
+				if (index == std::string::npos) {
+					result.push_back(expression[i]);
+					continue;
+				}
+
+				if (index >= argsCount) return false;
+				if (!ExpandExpression(source, arguments[index], arguments, parameters, macros, result)) return false;
+				continue;
+			}
+
+			if (macros[index].IsFunction) {
+				if ((i += 1) >= count) return false;
+				while (i < count && expression[i].Group == GrammarGroup::REDUNDANT) i += 1;
+				if (i >= count || expression[i].Type != GrammarType::OPENING_PARENTHESIS_OPERATOR) return false;
+
+				std::vector<std::vector<Lexeme_t> > tmpArguments;
+				if (!GetArgumentsFromNestedExpression(expression, i, tmpArguments)) return false;
+
+				std::vector<Lexeme_t> tmpArg;
+				std::vector<std::vector<Lexeme_t> > subArguments;
+				for (const std::vector<Lexeme_t> &subVec : tmpArguments) {
+					if (!ExpandExpression(source, subVec, arguments, parameters, macros, tmpArg)) return false;
+					subArguments.push_back(tmpArg);
+					tmpArg.clear();
+				}
+
+				if (!ExpandExpression(source, macros[index].Expression, subArguments, macros[index].Parameters, macros, result)) return false;
+
+				size_t level = 0;
+				while (i < count) {
+					if (expression[i].Type == GrammarType::OPENING_PARENTHESIS_OPERATOR) {
+						level += 1;
+					}
+					else if (expression[i].Type == GrammarType::CLOSING_PARENTHESIS_OPERATOR) {
+						if (!level) return false;
+						if (level == 1) break;
+						level -= 1;
+					}
+
+					i += 1;
+				}
+			}
+			else if (!ExpandExpression(source, macros[index].Expression, arguments, parameters, macros, result)) return false;
+		}
+		else if (expression[i].Type == GrammarType::ELLIPSIS_OPERATOR) {
+			size_t index = GetLexemeIndex(parameters, value);
+			if (index >= argsCount) return false;
+
+			Lexeme_t lexeme = { GrammarGroup::UNDEFINED, GrammarType::UNDEFINED, 0, 0, "" };
+			for (; index < argsCount; index++) {
+				if (!ExpandExpression(source, arguments[index], arguments, parameters, macros, result)) return false;
+				if (index < argsCount - 1) {
+					if (lexeme.Group == GrammarGroup::UNDEFINED) lexeme = GetLexeme(
+						source, arguments[index].back().Position + arguments[index].back().Length
+					);
+
+					result.push_back(lexeme);
+				}
+			}
+		}
+		else if (expression[i].Type == GrammarType::PREPROCESSOR_OPERATOR) {
+			if (parameters.back().Type != GrammarType::ELLIPSIS_OPERATOR) return false;
+
+			size_t index = parameters.size() - 1;
+			if (i < count - 1 && expression[i + 1].Type == GrammarType::DEC_LITERAL) {
+				i += 1;
+
+				if (index >= argsCount) return false;
+
+				index += std::stoul(source.substr(expression[i].Position, expression[i].Length));
+				if (index >= argsCount) return false;
+
+				result.insert(result.end(), arguments[index].begin(), arguments[index].end());
+			}
+			else {
+				result.push_back({
+					GrammarGroup::LITERAL,
+					GrammarType::DEC_LITERAL,
+					index >= argsCount ? 0 : argsCount - index,
+					0,
+					""
+				});
+			}
+		}
+		else if (expression[i].Type != GrammarType::COMMENT) result.push_back(expression[i]);
+	}
+
+	return true;
 }

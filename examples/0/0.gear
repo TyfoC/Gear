@@ -1,8 +1,7 @@
 @preinc "inc1.gear"		//	preprocess file & include
 @preinc <inc2.gear>
 
-@def NAME	{value}
-@def FUN(a, b, c, ...)	{a + b * c - NAME}
+@def VAR	{FUNC(1,2) + FUNC(4,3)}
 
 @save {
 	This data will not be changed!
@@ -12,15 +11,11 @@
 	*/
 }
 
-@undef JJJ
-@undef NAME
-
 /*
 	C main function
 		argc - input arguments count
 		argv - input arguments
 */
 int main(int argc, char** argv) {
-	@op@ "";
-	return 0;
+	return VAR;
 }

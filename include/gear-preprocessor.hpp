@@ -28,4 +28,13 @@ namespace Gear {
 
 	size_t CreateMacro(const std::string source, size_t namePosition, Macro_t &result);
 	size_t GetMacroIndex(const std::vector<Macro_t> macros, const std::string name);
+	
+	bool ExpandExpression(
+		const std::string source,
+		const std::vector<Lexeme_t> expression,
+		const std::vector<std::vector<Lexeme_t> > arguments,
+		const std::vector<Lexeme_t> parameters,
+		const std::vector<Macro_t> macros,
+		std::vector<Lexeme_t> &result
+	);
 }

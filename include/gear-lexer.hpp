@@ -85,6 +85,7 @@ namespace Gear
 		GrammarType		Type;
 		size_t			Position;
 		size_t			Length;
+		std::string		Value;
 	};
 
 	struct StringPosition_t {
@@ -117,4 +118,6 @@ namespace Gear
 	size_t GetLengthBeforeLineBreak(const std::string source, size_t position);
 	size_t FindPositionByType(const std::string source, size_t position, GrammarType grammarType);
 	bool GetArgumentsFromNestedExpression(const std::string source, size_t position, std::vector<std::vector<Lexeme_t> > &result);
+	bool GetArgumentsFromNestedExpression(const std::vector<Lexeme_t> lexemes, size_t index, std::vector<std::vector<Lexeme_t> > &result);
+	size_t GetLexemeIndex(const std::vector<Lexeme_t> lexemes, const std::string value);
 }

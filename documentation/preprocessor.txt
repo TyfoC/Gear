@@ -2,20 +2,20 @@ Commentaries:
 	//	inline commentary
 	/* multiline commentary */
 Directives:
-	@dog
+	@op
 	X@join Y
 	@preinc X
 	@rawinc X
 	@save {DATA, THAT WON'T BE CHANGED}
 
-@dog:
-	Since the `@` character is used to specify preprocessor directives to insert it into the file text, the `@dog` directive was defined.
+@op:
+	Since the `@` character is used to specify preprocessor directives to insert it into the file text, the `@op` directive was defined.
 	Note:
-		if you don't want to leave whitespace, add `@` after `@dog`.
+		if you don't want to leave whitespace, add `@` after `@op`.
 	Examples:
-		`@dog@preinc "LocalFilePath"` -> `@preinc "LocalFilePath"`
-		`@dog@ preinc "LocalFilePath"` -> `@preinc "LocalFilePath"`
-		`The @dog symbol is used for text preprocessing` -> `The @ symbol is used for text preprocessing`
+		`@op@preinc "LocalFilePath"` -> `@preinc "LocalFilePath"`
+		`@op@ preinc "LocalFilePath"` -> `@preinc "LocalFilePath"`
+		`The @op symbol is used for text preprocessing` -> `The @ symbol is used for text preprocessing`
 
 X@join Y:
 	Used to connect the left and right parts.
@@ -43,7 +43,28 @@ X@join Y:
 		`@rawinc "LocalFilePath"` -> included local file content
 		`@rawinc <SpecFilePath>` -> included file content from specified directories
 
-@save:
+@save X:
 	Does not preprocess data inside braces
+	Note:
+		X - data inside braces
 	Examples:
 		`message = @save {"hello, world!";	// hello world, huh :D}` -> `message = "hello, world!";	// hello world, huh :D`
+
+@def X Y:
+	Defines a macro
+	Note:
+		Macros cannot be used when using some preprocessor directives (@preinc, @rawinc, @save)
+		X - macro name (you can specify parenthesized parameters that must follow the macro name)
+		Y - expression expression in braces
+		The `...` operator in parameters expands the number of parameters to whatever is determined at the time the argument is used.
+		When using `@ARG_INDEX` (ARG_INDEX - argument index) in the expression of a macro containing `...` in the parameters,
+			the argument that corresponds to the given index in the `...` arguments will be substituted:
+			`@def FUNC(a, ...)	{a + @1 - @0} /*...*/ FUNC(123, 456, 789)` -> `123 + 789 - 456`
+		When using `@` in a macro expression containing a `...` parameter,
+			the number of arguments in the `...` arguments will be substituted:
+			`@def FUNC(a, ...)	{@ * a} /*...*/ FUNC(123, 456, 789)` -> `2 * 123`
+
+@undef X
+	Deletes a macro
+	Note:
+		X - macro name

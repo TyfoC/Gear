@@ -71,12 +71,13 @@ Gear::Lexeme_t Gear::GetLexeme(const std::string source, size_t position) {
 	std::cmatch exprMatch;
 	for (const Token_t &token : GearGrammar) {
 		expr = std::regex(token.Pattern);
-		if (std::regex_search(strView.begin(), strView.end(), exprMatch, expr) && !exprMatch.position()) return {
-			token.Group, token.Type, position, exprMatch.str().length()
-		};
+		if (std::regex_search(strView.begin(), strView.end(), exprMatch, expr) && !exprMatch.position()) {
+			std::string value = exprMatch.str();
+			return { token.Group, token.Type, position, value.length(), value };
+		}
 	}
 
-	return { GrammarGroup::UNDEFINED, GrammarType::UNDEFINED, position, 1 };
+	return { GrammarGroup::UNDEFINED, GrammarType::UNDEFINED, position, 1, " " };
 }
 
 std::vector<Gear::Token_t> &Gear::GetGrammar() {
@@ -232,6 +233,7 @@ bool Gear::GetArgumentsFromNestedExpression(const std::string source, size_t pos
 			case GrammarType::OPENING_BRACE_OPERATOR:
 				prevType = lexeme.Type;
 				level += 1;
+				tmp.push_back(lexeme);
 				break;
 			case GrammarType::CLOSING_PARENTHESIS_OPERATOR:
 			case GrammarType::CLOSING_BRACKET_OPERATOR:
@@ -239,6 +241,7 @@ bool Gear::GetArgumentsFromNestedExpression(const std::string source, size_t pos
 				if (!level) return false;
 				prevType = lexeme.Type;
 				level -= 1;
+				tmp.push_back(lexeme);
 				break;
 			case GrammarType::COMMA_OPERATOR:
 				if (prevType == GrammarType::COMMA_OPERATOR) return false;
@@ -260,4 +263,63 @@ bool Gear::GetArgumentsFromNestedExpression(const std::string source, size_t pos
 	if (tmp.size()) result.push_back(tmp);
 
 	return true;
+}
+
+bool Gear::GetArgumentsFromNestedExpression(const std::vector<Lexeme_t> lexemes, size_t index, std::vector<std::vector<Lexeme_t> > &result) {
+	size_t count = lexemes.size();
+	if (index >= count) return false;
+
+	if (
+		lexemes[index].Type != GrammarType::OPENING_PARENTHESIS_OPERATOR &&
+		lexemes[index].Type != GrammarType::OPENING_BRACKET_OPERATOR &&
+		lexemes[index].Type != GrammarType::OPENING_BRACE_OPERATOR
+	) return false;
+
+	index += 1;
+
+	size_t level = 1;
+	std::vector<Lexeme_t> tmp;
+	GrammarType prevType = GrammarType::SPACE;
+	while (index < count) {
+		if (lexemes[index].Type == GrammarType::OPENING_PARENTHESIS_OPERATOR ||
+			lexemes[index].Type == GrammarType::OPENING_BRACKET_OPERATOR ||
+			lexemes[index].Type == GrammarType::OPENING_BRACE_OPERATOR
+		) {
+			level += 1;
+			tmp.push_back(lexemes[index]);
+		}
+		else if (
+			lexemes[index].Type == GrammarType::CLOSING_PARENTHESIS_OPERATOR ||
+			lexemes[index].Type == GrammarType::CLOSING_BRACKET_OPERATOR ||
+			lexemes[index].Type == GrammarType::CLOSING_BRACE_OPERATOR
+		) {
+			if (!level) return false;
+			if (level == 1) break;
+			level -= 1;
+			tmp.push_back(lexemes[index]);
+		}
+		else if (lexemes[index].Type == GrammarType::COMMA_OPERATOR) {
+			if (prevType == GrammarType::COMMA_OPERATOR) return false;
+			prevType = GrammarType::COMMA_OPERATOR;
+			result.push_back(tmp);
+			tmp.clear();
+		}
+		else if (lexemes[index].Type != GrammarType::COMMENT) {
+			if (lexemes[index].Group != GrammarGroup::REDUNDANT) prevType = lexemes[index].Type;
+			tmp.push_back(lexemes[index]);
+		}
+
+		index += 1;
+	}
+
+	if (level != 1) return false;
+	if (tmp.size()) result.push_back(tmp);
+
+	return true;
+}
+
+size_t Gear::GetLexemeIndex(const std::vector<Lexeme_t> lexemes, const std::string value) {
+	size_t count = lexemes.size();
+	for (size_t i = 0; i < count; i++) if (lexemes[i].Value == value) return i;
+	return std::string::npos;
 }
