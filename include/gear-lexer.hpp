@@ -26,6 +26,7 @@ namespace Gear
 		BIN_LITERAL,
 		CHAR_LITERAL,
 		STRING_LITERAL,
+		ELLIPSIS_OPERATOR,
 		ADD_OPERATOR,
 		SUB_OPERATOR,
 		MUL_OPERATOR,
@@ -115,4 +116,5 @@ namespace Gear
 	StringPosition_t GetLineColumnByPosition(const std::string source, size_t position);
 	size_t GetLengthBeforeLineBreak(const std::string source, size_t position);
 	size_t FindPositionByType(const std::string source, size_t position, GrammarType grammarType);
+	bool GetArgumentsFromNestedExpression(const std::string source, size_t position, std::vector<std::vector<Lexeme_t> > &result);
 }

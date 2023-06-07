@@ -19,8 +19,8 @@ void PrintHelp() {
 	std::cout << "Options:" << std::endl;
 	std::cout << "\t-o - select output path" << std::endl;
 	std::cout << "\t-f - select output format" << std::endl;
-	std::cout << "\t-I - include directory" << std::endl;
 	std::cout << "\t\tOutput formats: std, json" << std::endl;
+	std::cout << "\t-I - include directory" << std::endl;
 }
 
 int main(int argc, char** argv) {
@@ -169,7 +169,14 @@ int main(int argc, char** argv) {
 		std::string fileData = Gear::ReadTextFile(input);
 		input.close();
 
-		Gear::PreprocessingResult_t result = Gear::Preprocess(fileData, Gear::GetDirectoryPathFromFilePath(inputPaths[0]), includePaths);
+		std::vector<Gear::Macro_t> macros;
+		Gear::PreprocessingResult_t result = Gear::Preprocess(
+			fileData,
+			Gear::GetDirectoryPathFromFilePath(inputPaths[0]),
+			includePaths,
+			macros
+		);
+		
 		Gear::PrintMessages(result.Messages, inputPaths[0], fileData);
 
 		if (!result.WorkCompleted) {

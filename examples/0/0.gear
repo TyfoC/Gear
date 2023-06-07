@@ -1,6 +1,9 @@
 @preinc "inc1.gear"		//	preprocess file & include
 @preinc <inc2.gear>
 
+@def NAME	{value}
+@def FUN(a, b, c, ...)	{a + b * c - NAME}
+
 @save {
 	This data will not be changed!
 	//	And this
@@ -8,6 +11,9 @@
 		Also this
 	*/
 }
+
+@undef JJJ
+@undef NAME
 
 /*
 	C main function

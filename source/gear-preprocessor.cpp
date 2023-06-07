@@ -3,11 +3,13 @@
 Gear::PreprocessingResult_t Gear::Preprocess(
 	const std::string source,
 	const std::string srcFileDirectoryPath,
-	const std::vector<std::string> includePaths
+	const std::vector<std::string> includePaths,
+	std::vector<Macro_t> &macros
 ) {
 	PreprocessingResult_t result = { false, "", {} };
 
 	Lexeme_t lexeme;
+	Macro_t macro;
 	StringPosition_t strPos;
 	size_t length = source.length();
 	for (size_t i = 0; i < length;) {
@@ -161,7 +163,7 @@ Gear::PreprocessingResult_t Gear::Preprocess(
 				std::string fileData = ReadTextFile(handle);
 				if (!preprocessFile) result.Output += fileData;
 				else {
-					PreprocessingResult_t subResult = Preprocess(fileData, GetDirectoryPathFromFilePath(filePath), includePaths);
+					PreprocessingResult_t subResult = Preprocess(fileData, GetDirectoryPathFromFilePath(filePath), includePaths, macros);
 					PrintMessages(subResult.Messages, filePath, fileData);
 					if (!subResult.WorkCompleted) return result;
 
@@ -169,6 +171,69 @@ Gear::PreprocessingResult_t Gear::Preprocess(
 				}
 
 				handle.close();
+			}
+			else if (directiveName == "def") {
+				if ((i += lexeme.Length) >= length) {
+					strPos = GetLineColumnByPosition(source, i);
+					result.Messages.push_back({ MessageType::ERROR, "missing macro name", strPos.Line, strPos.Column, i });
+					return result;
+				}
+
+				do {
+					lexeme = GetLexeme(source, i);
+					if (lexeme.Group == GrammarGroup::REDUNDANT) i += lexeme.Length;
+				} while (i < length && lexeme.Group == GrammarGroup::REDUNDANT);
+
+				size_t nextPosition = CreateMacro(source, i, macro);
+				if (nextPosition == std::string::npos) {
+					strPos = GetLineColumnByPosition(source, i);
+					result.Messages.push_back({ MessageType::ERROR, "macro definition error", strPos.Line, strPos.Column, i });
+					return result;
+				}
+
+				size_t macroIndex = GetMacroIndex(macros, macro.Name);
+				if (macroIndex == std::string::npos) macros.push_back(macro);
+				else {
+					macros[macroIndex].Parameters = macro.Parameters;
+					macros[macroIndex].Expression = macro.Expression;
+					macros[macroIndex].IsFunction = macro.IsFunction;
+				}
+
+				macro = {};
+				i = nextPosition;
+			}
+			else if (directiveName == "undef") {
+				if ((i += lexeme.Length) >= length) {
+					strPos = GetLineColumnByPosition(source, i);
+					result.Messages.push_back({ MessageType::ERROR, "missing macro name", strPos.Line, strPos.Column, i });
+					return result;
+				}
+
+				do {
+					lexeme = GetLexeme(source, i);
+					if (lexeme.Group == GrammarGroup::REDUNDANT) i += lexeme.Length;
+				} while (i < length && lexeme.Group == GrammarGroup::REDUNDANT);
+
+				if (lexeme.Group != GrammarGroup::IDENTIFIER) {
+					strPos = GetLineColumnByPosition(source, i);
+					result.Messages.push_back({ MessageType::ERROR, "missing macro name", strPos.Line, strPos.Column, i });
+					return result;
+				}
+
+				std::string macroName = source.substr(lexeme.Position, lexeme.Length);
+				size_t macroIndex = GetMacroIndex(macros, macroName);
+				if (macroIndex == std::string::npos) {
+					strPos = GetLineColumnByPosition(source, i);
+					result.Messages.push_back({
+						MessageType::WARNING,
+						"macro `" + macroName + "` cannot be undefined because it was not defined",
+						strPos.Line,
+						strPos.Column,
+						i
+					});
+				}
+
+				i += lexeme.Length;
 			}
 			else {
 				strPos = GetLineColumnByPosition(source, i);
@@ -184,4 +249,81 @@ Gear::PreprocessingResult_t Gear::Preprocess(
 
 	result.WorkCompleted = true;
 	return result;
+}
+
+size_t Gear::CreateMacro(const std::string source, size_t namePosition, Macro_t &result) {
+	size_t length = source.length();
+	if (namePosition >= length) return std::string::npos;
+
+	Lexeme_t lexeme = GetLexeme(source, namePosition);
+	if (lexeme.Group != GrammarGroup::IDENTIFIER) return std::string::npos;
+
+	size_t position = namePosition;
+	result.Name = source.substr(position, lexeme.Length);
+	position += lexeme.Length;
+	lexeme = GetLexeme(source, position);
+	result.IsFunction = lexeme.Type == GrammarType::OPENING_PARENTHESIS_OPERATOR;
+	if (result.IsFunction) {
+		size_t lexemesCount;
+		bool identifierAdded;
+		std::vector<std::vector<Lexeme_t> > parameters;
+		if (!GetArgumentsFromNestedExpression(source, position, parameters)) return std::string::npos;
+
+		for (const std::vector<Lexeme_t> &lexVec : parameters) {
+			lexemesCount = lexVec.size();
+			identifierAdded = false;
+			for (size_t i = 0; i < lexemesCount; i++) {
+				if (lexVec[i].Group == GrammarGroup::IDENTIFIER || lexVec[i].Type == GrammarType::ELLIPSIS_OPERATOR) {
+					if (identifierAdded) return std::string::npos;
+					result.Parameters.push_back(lexVec[i]);
+					identifierAdded = true;
+				}
+				else if (lexVec[i].Group != GrammarGroup::REDUNDANT) return std::string::npos;
+			}
+		}
+
+		size_t nestingLength = GetNestingLength(
+			source,
+			position,
+			GrammarType::OPENING_PARENTHESIS_OPERATOR,
+			GrammarType::CLOSING_PARENTHESIS_OPERATOR
+		);
+
+		if (nestingLength == std::string::npos) return std::string::npos;
+		position += nestingLength;
+	}
+
+	do {
+		lexeme = GetLexeme(source, position);
+		if (lexeme.Group == GrammarGroup::REDUNDANT) position += lexeme.Length;
+	} while (lexeme.Group == GrammarGroup::REDUNDANT);
+
+	if (lexeme.Type != GrammarType::OPENING_BRACE_OPERATOR) return std::string::npos;
+
+	size_t nestedExprLen = GetNestedExpressionLength(
+		source,
+		position,
+		GrammarType::OPENING_BRACE_OPERATOR,
+		GrammarType::CLOSING_BRACE_OPERATOR, false
+	);
+
+	if (nestedExprLen == std::string::npos) return std::string::npos;
+
+	position += lexeme.Length;
+	size_t closingLimiterPosition = position + nestedExprLen;
+
+	while (position < closingLimiterPosition) {
+		lexeme = GetLexeme(source, position);
+		if (lexeme.Type != GrammarType::COMMENT) result.Expression.push_back(lexeme);
+		position += lexeme.Length;
+	}
+
+	lexeme = GetLexeme(source, position);
+	return position + lexeme.Length;
+}
+
+size_t Gear::GetMacroIndex(const std::vector<Macro_t> macros, const std::string name) {
+	size_t count = macros.size();
+	for (size_t i = 0; i < count; i++) if (macros[i].Name == name) return i;
+	return std::string::npos;
 }

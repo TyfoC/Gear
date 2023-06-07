@@ -10,6 +10,7 @@ static std::vector<Gear::Token_t> GearGrammar = {
 	{ Gear::GrammarGroup::LITERAL, Gear::GrammarType::BIN_LITERAL, R"(0[bB][01]+\b)" },
 	{ Gear::GrammarGroup::LITERAL, Gear::GrammarType::CHAR_LITERAL, R"('(\\[\s\S]|[^\'])*')" },
 	{ Gear::GrammarGroup::LITERAL, Gear::GrammarType::STRING_LITERAL, R"("(\\[\s\S]|[^\"])*")" },
+	{ Gear::GrammarGroup::OPERATOR, Gear::GrammarType::ELLIPSIS_OPERATOR, R"(\.\.\.)" },
 	{ Gear::GrammarGroup::OPERATOR, Gear::GrammarType::INC_OPERATOR, R"(\+\+)" },
 	{ Gear::GrammarGroup::OPERATOR, Gear::GrammarType::DEC_OPERATOR, R"(\-\-)" },
 	{ Gear::GrammarGroup::OPERATOR, Gear::GrammarType::LSH_ASSIGN_OPERATOR, R"(<<=)" },
@@ -153,18 +154,18 @@ Gear::StringPosition_t Gear::GetLineColumnByPosition(const std::string source, s
 	size_t length = source.length();
 	if (position >= length) return { std::string::npos, std::string::npos };
 	
-	Lexeme_t lexeme;
 	StringPosition_t result = { 1, 1 };
-
-	for (size_t i = 0; i < position;) {
-		lexeme = GetLexeme(source, i);
-		if (lexeme.Type == GrammarType::LINE_BREAK) {
+	for (size_t i = 0; i < position; i++) {
+		if (source[i] == '\r') {
+			if (source[i] == '\n') i += 1;
 			result.Line += 1;
 			result.Column = 1;
 		}
-		else result.Column += lexeme.Length;
-
-		i += lexeme.Length;
+		else if (source[i] == '\n') {
+			result.Line += 1;
+			result.Column = 1;
+		}
+		else result.Column += 1;
 	}
 
 	return result;
@@ -200,4 +201,63 @@ size_t Gear::FindPositionByType(const std::string source, size_t position, Gramm
 	}
 
 	return std::string::npos;
+}
+
+bool Gear::GetArgumentsFromNestedExpression(const std::string source, size_t position, std::vector<std::vector<Lexeme_t> > &result) {
+	size_t length = source.length();
+	if (position >= length) return false;
+
+	Lexeme_t lexeme = GetLexeme(source, position);
+	GrammarType closingLimiterType;
+	if (lexeme.Type == GrammarType::OPENING_PARENTHESIS_OPERATOR) closingLimiterType = GrammarType::CLOSING_PARENTHESIS_OPERATOR;
+	else if (lexeme.Type == GrammarType::OPENING_BRACKET_OPERATOR) closingLimiterType = GrammarType::CLOSING_BRACKET_OPERATOR;
+	else if (lexeme.Type == GrammarType::OPENING_BRACE_OPERATOR) closingLimiterType = GrammarType::CLOSING_BRACE_OPERATOR;
+	else return false;
+
+	size_t nestedExprLen = GetNestedExpressionLength(source, position, lexeme.Type, closingLimiterType, false);
+	if (nestedExprLen == std::string::npos) return false;
+
+
+	position += lexeme.Length;
+	size_t closingLimiterPosition = position + nestedExprLen;
+	std::vector<Lexeme_t> tmp;
+
+	size_t level = 0;
+	GrammarType prevType = GrammarType::SPACE;
+	while (position < closingLimiterPosition) {
+		lexeme = GetLexeme(source, position);
+		switch (lexeme.Type) {
+			case GrammarType::OPENING_PARENTHESIS_OPERATOR:
+			case GrammarType::OPENING_BRACKET_OPERATOR:
+			case GrammarType::OPENING_BRACE_OPERATOR:
+				prevType = lexeme.Type;
+				level += 1;
+				break;
+			case GrammarType::CLOSING_PARENTHESIS_OPERATOR:
+			case GrammarType::CLOSING_BRACKET_OPERATOR:
+			case GrammarType::CLOSING_BRACE_OPERATOR:
+				if (!level) return false;
+				prevType = lexeme.Type;
+				level -= 1;
+				break;
+			case GrammarType::COMMA_OPERATOR:
+				if (prevType == GrammarType::COMMA_OPERATOR) return false;
+				prevType = GrammarType::COMMA_OPERATOR;
+				result.push_back(tmp);
+				tmp.clear();
+				break;
+			case GrammarType::COMMENT:
+				break;
+			default:
+				if (lexeme.Group != GrammarGroup::REDUNDANT) prevType = lexeme.Type;
+				tmp.push_back(lexeme);
+				break;
+		}
+
+		position += lexeme.Length;
+	}
+
+	if (tmp.size()) result.push_back(tmp);
+
+	return true;
 }
