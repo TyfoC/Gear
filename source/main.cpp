@@ -172,7 +172,7 @@ int main(int argc, char** argv) {
 		std::vector<Gear::Macro_t> macros;
 		Gear::PreprocessingResult_t result = Gear::Preprocess(
 			fileData,
-			Gear::GetDirectoryPathFromFilePath(inputPaths[0]),
+			inputPaths[0],
 			includePaths,
 			macros
 		);

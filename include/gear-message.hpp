@@ -16,10 +16,13 @@ namespace Gear {
 		operator std::string() const;
 		MessageType	Type;
 		std::string	Text;
-		size_t		Line;
-		size_t		Column;
 		size_t		Position;
 	};
 
-	void PrintMessages(const std::vector<Message_t> messages, const std::string filePath, const std::string fileData);
+	void PrintMessages(
+		const std::vector<Message_t> messages,
+		const std::string filePath,
+		const std::string fileData,
+		size_t realStartPosition = 0
+	);
 }

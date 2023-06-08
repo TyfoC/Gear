@@ -90,7 +90,7 @@ size_t Gear::FindTokenIndex(GrammarType grammarType) {
 	return std::string::npos;
 }
 
-size_t Gear::GetNestingLength(
+size_t Gear::GetExpressionLength(
 	const std::string source,
 	size_t position,
 	GrammarType leftLimiterType,
@@ -215,12 +215,11 @@ bool Gear::GetArgumentsFromNestedExpression(const std::string source, size_t pos
 	else if (lexeme.Type == GrammarType::OPENING_BRACE_OPERATOR) closingLimiterType = GrammarType::CLOSING_BRACE_OPERATOR;
 	else return false;
 
-	size_t nestedExprLen = GetNestedExpressionLength(source, position, lexeme.Type, closingLimiterType, false);
-	if (nestedExprLen == std::string::npos) return false;
-
+	size_t exprLen = GetNestedExpressionLength(source, position, lexeme.Type, closingLimiterType);
+	if (exprLen == std::string::npos) return false;
 
 	position += lexeme.Length;
-	size_t closingLimiterPosition = position + nestedExprLen;
+	size_t closingLimiterPosition = position + exprLen;
 	std::vector<Lexeme_t> tmp;
 
 	size_t level = 0;

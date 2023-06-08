@@ -98,12 +98,12 @@ namespace Gear
 	std::vector<Token_t> &GetGrammar();
 	size_t FindTokenIndex(GrammarType grammarType);
 
-	size_t GetNestingLength(
+	size_t GetExpressionLength(
 		const std::string source,
 		size_t position,
 		GrammarType leftLimiterType,
 		GrammarType rightLimiterType,
-		bool avoidComments = true
+		bool avoidComments = false
 	);
 
 	size_t GetNestedExpressionLength(
@@ -111,7 +111,7 @@ namespace Gear
 		size_t position,
 		GrammarType leftLimiterType,
 		GrammarType rightLimiterType,
-		bool avoidComments = true
+		bool avoidComments = false
 	);
 
 	StringPosition_t GetLineColumnByPosition(const std::string source, size_t position);

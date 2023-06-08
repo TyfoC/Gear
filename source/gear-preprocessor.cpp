@@ -2,29 +2,31 @@
 
 Gear::PreprocessingResult_t Gear::Preprocess(
 	const std::string source,
-	const std::string srcFileDirectoryPath,
+	const std::string filePath,
 	const std::vector<std::string> includePaths,
 	std::vector<Macro_t> &macros
 ) {
-	PreprocessingResult_t result = { false, "", {} };
+	PreprocessingResult_t result = { false, "", {} }, tmpRes;
 
 	Lexeme_t lexeme;
 	Macro_t macro;
-	StringPosition_t strPos;
+	size_t exprLength;
+	std::string tmpStr, tmpSubStr;
+	std::vector<Lexeme_t> tmpLexVec;
 	size_t length = source.length();
+	bool wasConditionChecked = false, wasLastConditionTrue = false;
+	std::string parentDirectoryPath = GetDirectoryPathFromFilePath(filePath);
 	for (size_t i = 0; i < length;) {
 		lexeme = GetLexeme(source, i);
 
 		if (lexeme.Group == GrammarGroup::UNDEFINED) {
-			strPos = GetLineColumnByPosition(source, i);
-			result.Messages.push_back({ MessageType::ERROR, "unknown lexeme found", strPos.Line, strPos.Column, i });
+			result.Messages.push_back({ MessageType::ERROR, "unknown lexeme found", i });
 			return result;
 		}
 		else if (lexeme.Type == GrammarType::PREPROCESSOR_OPERATOR) {
 			std::string_view preprocessorOperator = std::string_view(source).substr(i, lexeme.Length);
 			if ((i += lexeme.Length) >= length) {
-				strPos = GetLineColumnByPosition(source, i);
-				result.Messages.push_back({ MessageType::ERROR, "missing preprocessor directive name", strPos.Line, strPos.Column, i });
+				result.Messages.push_back({ MessageType::ERROR, "missing preprocessor directive name", i -= lexeme.Length });
 				return result;
 			}
 
@@ -34,19 +36,18 @@ Gear::PreprocessingResult_t Gear::Preprocess(
 			} while (i < length && lexeme.Group == GrammarGroup::REDUNDANT);
 
 			if (lexeme.Group != GrammarGroup::IDENTIFIER) {
-				strPos = GetLineColumnByPosition(source, i);
-				result.Messages.push_back({ MessageType::ERROR, "missing preprocessor directive name", strPos.Line, strPos.Column, i });
+				result.Messages.push_back({ MessageType::ERROR, "missing preprocessor directive name", i });
 				return result;
 			}
 
 			std::string_view directiveName = std::string_view(source).substr(i, lexeme.Length);
 			if (directiveName == "op") {
 				result.Output += preprocessorOperator;
-				if ((i += lexeme.Length) >= length) break;
+				if ((i += lexeme.Length) >= length) break;									//	skip `op`
 
 				lexeme = GetLexeme(source, i);
 				if (lexeme.Type == GrammarType::PREPROCESSOR_OPERATOR) {
-					if ((i += lexeme.Length) >= length) break;
+					if ((i += lexeme.Length) >= length) break;								//	skip redundant lexemes
 					do {
 						lexeme = GetLexeme(source, i);
 						if (lexeme.Group == GrammarGroup::REDUNDANT) i += lexeme.Length;
@@ -54,140 +55,133 @@ Gear::PreprocessingResult_t Gear::Preprocess(
 				}
 			}
 			else if (directiveName == "join") {
-				if ((i += lexeme.Length) >= length) break;
+				if ((i += lexeme.Length) >= length) break;									//	skip `join`
 				do {
 					lexeme = GetLexeme(source, i);
 					if (lexeme.Group == GrammarGroup::REDUNDANT) i += lexeme.Length;
-				} while (i < length && lexeme.Group == GrammarGroup::REDUNDANT);
+				} while (i < length && lexeme.Group == GrammarGroup::REDUNDANT);			//	skip redundant lexemes
 			}
 			else if (directiveName == "save") {
-				if ((i += lexeme.Length) >= length) {
-					strPos = GetLineColumnByPosition(source, i);
-					result.Messages.push_back({ MessageType::ERROR, "missing expression", strPos.Line, strPos.Column, i });
+				if ((i += lexeme.Length) >= length) {										//	skip `save`
+					result.Messages.push_back({ MessageType::ERROR, "missing expression", i -= lexeme.Length });
 					return result;
 				}
 
 				do {
 					lexeme = GetLexeme(source, i);
 					if (lexeme.Group == GrammarGroup::REDUNDANT) i += lexeme.Length;
-				} while (i < length && lexeme.Group == GrammarGroup::REDUNDANT);
+				} while (i < length && lexeme.Group == GrammarGroup::REDUNDANT);			//	skip redundant lexemes
 
 				if (lexeme.Type != GrammarType::OPENING_BRACE_OPERATOR) {
-					strPos = GetLineColumnByPosition(source, i);
-					result.Messages.push_back({ MessageType::ERROR, "missing expression", strPos.Line, strPos.Column, i });
+					result.Messages.push_back({ MessageType::ERROR, "missing expression", i });
 					return result;
 				}
 
-				size_t nestedExprLength = GetNestedExpressionLength(
-					source, i, GrammarType::OPENING_BRACE_OPERATOR, GrammarType::CLOSING_BRACE_OPERATOR
+				exprLength = GetNestedExpressionLength(
+					source,
+					i,
+					GrammarType::OPENING_BRACE_OPERATOR,
+					GrammarType::CLOSING_BRACE_OPERATOR,
+					true
 				);
 
-				if (nestedExprLength == std::string::npos) {
-					strPos = GetLineColumnByPosition(source, i);
-					result.Messages.push_back({ MessageType::ERROR, "missing end of expression", strPos.Line, strPos.Column, i });
+				if (exprLength == std::string::npos) {
+					result.Messages.push_back({ MessageType::ERROR, "missing end of expression", i });
 					return result;
 				}
 
-				i += lexeme.Length;
-
-				result.Output += source.substr(i, nestedExprLength);
-				i += nestedExprLength;
-
+				i += lexeme.Length;															//	skip lexeme with type OPENING_BRACE_OPERATOR
+				result.Output += source.substr(i, exprLength);
+				i += exprLength;															//	skip expression
 				lexeme = GetLexeme(source, i);
-				i += lexeme.Length;
+				i += lexeme.Length;															//	skip lexeme with type CLOSING_BRACE_OPERATOR
 			}
 			else if (directiveName == "preinc" || directiveName == "rawinc") {
 				bool preprocessFile = directiveName[0] == 'p';
 
-				if ((i += lexeme.Length) >= length) {
-					strPos = GetLineColumnByPosition(source, i);
-					result.Messages.push_back({ MessageType::ERROR, "missing file path", strPos.Line, strPos.Column, i });
+				if ((i += lexeme.Length) >= length) {										//	skip `preinc` or `rawinc`
+					result.Messages.push_back({ MessageType::ERROR, "missing file path", i -= lexeme.Length });
 					return result;
 				}
 
 				do {
 					lexeme = GetLexeme(source, i);
 					if (lexeme.Group == GrammarGroup::REDUNDANT) i += lexeme.Length;
-				} while (i < length && lexeme.Group == GrammarGroup::REDUNDANT);
+				} while (i < length && lexeme.Group == GrammarGroup::REDUNDANT);			//	skip redundant lexemes
 
-				std::string filePath = "";
+				//	tmpStr - incFilePath
+
 				std::ifstream handle;
 				if (lexeme.Type == GrammarType::STRING_LITERAL) {
-					filePath = srcFileDirectoryPath + '/' + source.substr(lexeme.Position + 1, lexeme.Length - 2);
-					handle = std::ifstream(filePath);
+					tmpStr = parentDirectoryPath + '/' + source.substr(lexeme.Position + 1, lexeme.Length - 2);
+					handle = std::ifstream(tmpStr);
 					if (!handle.is_open()) {
-						strPos = GetLineColumnByPosition(source, i);
-						result.Messages.push_back({ MessageType::ERROR, "failed to open `" + filePath + '`', strPos.Line, strPos.Column, i });
+						result.Messages.push_back({ MessageType::ERROR, "failed to open `" + tmpStr + '`', i });
 						return result;
 					}
 
-					i += lexeme.Length;
+					i += lexeme.Length;														//	skip "local file path"
 				}
 				else if (lexeme.Type == GrammarType::LESS_THAN_OPERATOR) {
-					if ((i += lexeme.Length) >= length) {
-						strPos = GetLineColumnByPosition(source, i);
-						result.Messages.push_back({ MessageType::ERROR, "missing file path", strPos.Line, strPos.Column, i });
+					if ((i += lexeme.Length) >= length) {									//	skip lexeme with type LESS_THAN_OPERATOR
+						result.Messages.push_back({ MessageType::ERROR, "missing file path", i -= lexeme.Length });
 						return result;
 					}
 
 					size_t pos = FindPositionByType(source, i, GrammarType::GREATER_THAN_OPERATOR);
 					if (pos == std::string::npos) {
-						strPos = GetLineColumnByPosition(source, i);
-						result.Messages.push_back({ MessageType::ERROR, "closing arrow missing", strPos.Line, strPos.Column, i });
+						result.Messages.push_back({ MessageType::ERROR, "closing arrow missing", i });
 						return result;
 					}
 
-					std::string fileName = source.substr(i, pos - i);
+					//	tmpSubStr - incFileName
+					tmpSubStr = source.substr(i, pos - i);
 					for (const std::string &includePath : includePaths) {
-						filePath = includePath + '/' + fileName;
-						handle = std::ifstream(filePath);
+						tmpStr = includePath + '/' + tmpSubStr;
+						handle = std::ifstream(tmpStr);
 						if (handle.is_open()) break;
 					}
 
 					if (!handle.is_open()) {
-						strPos = GetLineColumnByPosition(source, i);
-						result.Messages.push_back({ MessageType::ERROR, "failed to open `" + filePath + '`', strPos.Line, strPos.Column, i });
+						result.Messages.push_back({ MessageType::ERROR, "failed to open `" + tmpStr + '`', i });
 						return result;
 					}
 
-					i = pos;
+					i = pos;																//	jump to lexeme with type GREATER_THAN_OPERATOR
 					lexeme = GetLexeme(source, i);
-					i += lexeme.Length;
+					i += lexeme.Length;														//	skip lexeme with type GREATER_THAN_OPERATOR
 				}
 				else {
-					strPos = GetLineColumnByPosition(source, i);
-					result.Messages.push_back({ MessageType::ERROR, "missing file path", strPos.Line, strPos.Column, i });
+					result.Messages.push_back({ MessageType::ERROR, "missing file path", i });
 					return result;
 				}
 
-				std::string fileData = ReadTextFile(handle);
-				if (!preprocessFile) result.Output += fileData;
+				//	tmpSubStr - incFileData
+				tmpSubStr = ReadTextFile(handle);
+				if (!preprocessFile) result.Output += tmpSubStr;
 				else {
-					PreprocessingResult_t subResult = Preprocess(fileData, GetDirectoryPathFromFilePath(filePath), includePaths, macros);
-					PrintMessages(subResult.Messages, filePath, fileData);
-					if (!subResult.WorkCompleted) return result;
-
-					result.Output += subResult.Output;
+					tmpRes = Preprocess(tmpSubStr, GetDirectoryPathFromFilePath(tmpStr), includePaths, macros);
+					PrintMessages(tmpRes.Messages, tmpStr, tmpSubStr);
+					if (!tmpRes.WorkCompleted) return result;
+					result.Output += tmpRes.Output;
 				}
 
 				handle.close();
 			}
 			else if (directiveName == "def") {
-				if ((i += lexeme.Length) >= length) {
-					strPos = GetLineColumnByPosition(source, i);
-					result.Messages.push_back({ MessageType::ERROR, "missing macro name", strPos.Line, strPos.Column, i });
+				if ((i += lexeme.Length) >= length) {										//	skip `def`
+					result.Messages.push_back({ MessageType::ERROR, "missing macro name", i -= lexeme.Length });
 					return result;
 				}
 
 				do {
 					lexeme = GetLexeme(source, i);
 					if (lexeme.Group == GrammarGroup::REDUNDANT) i += lexeme.Length;
-				} while (i < length && lexeme.Group == GrammarGroup::REDUNDANT);
+				} while (i < length && lexeme.Group == GrammarGroup::REDUNDANT);			//	skip redundant lexemes
 
 				size_t nextPosition = CreateMacro(source, i, macro);
 				if (nextPosition == std::string::npos) {
-					strPos = GetLineColumnByPosition(source, i);
-					result.Messages.push_back({ MessageType::ERROR, "macro definition error", strPos.Line, strPos.Column, i });
+					result.Messages.push_back({ MessageType::ERROR, "macro definition error", i });
 					return result;
 				}
 
@@ -200,66 +194,273 @@ Gear::PreprocessingResult_t Gear::Preprocess(
 				}
 
 				macro = {};
-				i = nextPosition;
+				i = nextPosition;															//	skip macro definition with expression
 			}
 			else if (directiveName == "undef") {
-				if ((i += lexeme.Length) >= length) {
-					strPos = GetLineColumnByPosition(source, i);
-					result.Messages.push_back({ MessageType::ERROR, "missing macro name", strPos.Line, strPos.Column, i });
+				if ((i += lexeme.Length) >= length) {										//	skip `undef`
+					result.Messages.push_back({ MessageType::ERROR, "missing macro name", i -= lexeme.Length });
 					return result;
 				}
 
 				do {
 					lexeme = GetLexeme(source, i);
 					if (lexeme.Group == GrammarGroup::REDUNDANT) i += lexeme.Length;
-				} while (i < length && lexeme.Group == GrammarGroup::REDUNDANT);
+				} while (i < length && lexeme.Group == GrammarGroup::REDUNDANT);			//	skip redundant lexemes
 
 				if (lexeme.Group != GrammarGroup::IDENTIFIER) {
-					strPos = GetLineColumnByPosition(source, i);
-					result.Messages.push_back({ MessageType::ERROR, "missing macro name", strPos.Line, strPos.Column, i });
+					result.Messages.push_back({ MessageType::ERROR, "missing macro name", i });
 					return result;
 				}
 
 				size_t macroIndex = GetMacroIndex(macros, lexeme.Value);
 				if (macroIndex == std::string::npos) {
-					strPos = GetLineColumnByPosition(source, i);
 					result.Messages.push_back({
 						MessageType::WARNING,
 						"macro `" + lexeme.Value + "` cannot be undefined because it was not defined",
-						strPos.Line,
-						strPos.Column,
 						i
 					});
 				}
 				else macros.erase(macros.begin() + macroIndex);
 
-				i += lexeme.Length;
+				i += lexeme.Length;															//	skip identifier (macro name)
+			}
+			else if (
+				directiveName == "ifdef" ||
+				directiveName == "ifndef" ||
+				directiveName == "if" ||
+				directiveName == "elif" ||
+				directiveName == "else"
+			) {
+				if ((i += lexeme.Length) >= length) {										//	skip `ifdef`/`ifndef`/`if`
+					result.Messages.push_back({ MessageType::ERROR, "unfinished condition", i -= lexeme.Length });
+					return result;
+				}
+
+				do {
+					lexeme = GetLexeme(source, i);
+					if (lexeme.Group == GrammarGroup::REDUNDANT) i += lexeme.Length;
+				} while (i < length && lexeme.Group == GrammarGroup::REDUNDANT);			//	skip redundant lexemes
+
+				if (directiveName == "ifdef" || directiveName == "ifndef") {
+					bool checkIsNotDefined = directiveName[2] == 'n';
+					if (lexeme.Group != GrammarGroup::IDENTIFIER) {
+						result.Messages.push_back({ MessageType::ERROR, "missing macro name", i });
+						return result;
+					}
+
+					size_t macroIndex = GetMacroIndex(macros, lexeme.Value);
+					wasLastConditionTrue = checkIsNotDefined ? macroIndex == std::string::npos : macroIndex != std::string::npos;
+
+					if ((i += lexeme.Length) >= length) {									//	skip identifier (macro name)
+						result.Messages.push_back({ MessageType::ERROR, "missing expression", i -= lexeme.Length });
+						return result;
+					}
+
+					do {
+						lexeme = GetLexeme(source, i);
+						if (lexeme.Group == GrammarGroup::REDUNDANT) i += lexeme.Length;
+					} while (i < length && lexeme.Group == GrammarGroup::REDUNDANT);		//	skip redundant lexemes
+					
+					if (lexeme.Type != GrammarType::OPENING_BRACE_OPERATOR) {
+						result.Messages.push_back({ MessageType::ERROR, "missing expression", i });
+						return result;
+					}
+
+					exprLength = GetNestedExpressionLength(
+						source,
+						i,
+						GrammarType::OPENING_BRACE_OPERATOR,
+						GrammarType::CLOSING_BRACE_OPERATOR
+					);
+					
+					if (exprLength == std::string::npos) {
+						result.Messages.push_back({ MessageType::ERROR, "missing end of expression", i });
+						return result;
+					}
+
+					i += lexeme.Length;														//	skip lexeme with type OPENING_BRACE_OPERATOR
+
+					if (wasLastConditionTrue) {
+						tmpStr = source.substr(i, exprLength);
+						tmpRes = Preprocess(tmpStr, filePath, includePaths, macros);
+						PrintMessages(tmpRes.Messages, filePath, source, i);
+						if (!tmpRes.WorkCompleted) return result;
+						result.Output += tmpRes.Output;
+					}
+
+					i += exprLength;														//	skip expression
+					lexeme = GetLexeme(source, i);
+					i += lexeme.Length;														//	skip lexeme with type CLOSING_BRACE_OPERATOR
+					wasConditionChecked = true;
+				}
+				else if (directiveName == "if" || directiveName == "elif") {
+					bool checkCondition = true;
+					if (directiveName[0] == 'e') {
+						if (!wasConditionChecked) {
+							result.Messages.push_back({ MessageType::ERROR, "missing first condition block", i });
+							return result;
+						}
+
+						if (wasLastConditionTrue) checkCondition = false;
+					}
+
+					size_t exprPosition = i;
+					if (lexeme.Type != GrammarType::OPENING_PARENTHESIS_OPERATOR) {
+						result.Messages.push_back({ MessageType::ERROR, "missing condition", i });
+						return result;
+					}
+
+					exprLength = GetNestedExpressionLength(
+						source,
+						i,
+						GrammarType::OPENING_PARENTHESIS_OPERATOR,
+						GrammarType::CLOSING_PARENTHESIS_OPERATOR
+					);
+
+					if (exprLength == std::string::npos) {
+						result.Messages.push_back({ MessageType::ERROR, "missing end of condition", i });
+						return result;
+					}
+
+					i += lexeme.Length;														//	skip lexeme with type OPENING_PARENTHESIS_OPERATOR
+
+					//	tmpStr - condition
+					tmpStr = "";
+					for (size_t j = i + exprLength; i < j;) {								//	skip condition
+						lexeme = GetLexeme(source, i);
+						tmpStr += lexeme.Value;
+						i += lexeme.Length;
+					}
+
+					tmpRes = Preprocess(tmpStr, filePath, includePaths, macros);
+					PrintMessages(tmpRes.Messages, filePath, source, exprPosition);
+					if (!tmpRes.WorkCompleted) return result;
+					tmpStr = tmpRes.Output;
+					wasLastConditionTrue = checkCondition ? EvaluateRpnExpression(InfixToRpnExpression(Lex(tmpStr))) == true : false;
+					lexeme = GetLexeme(source, i);
+					i += lexeme.Length;														//	skip lexeme with type CLOSING_PARENTHESIS_OPERATOR
+
+					do {
+						lexeme = GetLexeme(source, i);
+						if (lexeme.Group == GrammarGroup::REDUNDANT) i += lexeme.Length;
+					} while (i < length && lexeme.Group == GrammarGroup::REDUNDANT);		//	skip redundant lexemes
+
+					if (lexeme.Type != GrammarType::OPENING_BRACE_OPERATOR) {
+						result.Messages.push_back({ MessageType::ERROR, "missing expression", i });
+						return result;
+					}
+
+					exprPosition = i;
+					exprLength = GetNestedExpressionLength(
+						source,
+						i,
+						GrammarType::OPENING_BRACE_OPERATOR,
+						GrammarType::CLOSING_BRACE_OPERATOR
+					);
+
+					if (exprLength == std::string::npos) {
+						result.Messages.push_back({ MessageType::ERROR, "missing end of expression", i });
+						return result;
+					}
+
+					i += lexeme.Length;														//	skip lexeme with type OPENING_BRACE_OPERATOR
+
+					if (wasLastConditionTrue) {
+						tmpStr = source.substr(i, exprLength);
+						tmpRes = Preprocess(tmpStr, filePath, includePaths, macros);
+						PrintMessages(tmpRes.Messages, filePath, source, exprPosition);
+						if (!tmpRes.WorkCompleted) return result;
+						result.Output += tmpRes.Output;
+					}
+
+					i += exprLength;														//	skip expression
+					lexeme = GetLexeme(source, i);
+					i += lexeme.Length;														//	skip lexeme with type CLOSING_BRACE_OPERATOR
+					wasConditionChecked = true;
+				}
+				else if (directiveName == "else") {
+					if (!wasConditionChecked) {
+						result.Messages.push_back({ MessageType::ERROR, "missing previous condition block", i });
+						return result;
+					}
+
+					if (lexeme.Type != GrammarType::OPENING_BRACE_OPERATOR) {
+						result.Messages.push_back({ MessageType::ERROR, "missing expression", i });
+						return result;
+					}
+
+					size_t exprPosition = i;
+					exprLength = GetNestedExpressionLength(
+						source,
+						i,
+						GrammarType::OPENING_BRACE_OPERATOR,
+						GrammarType::CLOSING_BRACE_OPERATOR
+					);
+
+					if (exprLength == std::string::npos) {
+						result.Messages.push_back({ MessageType::ERROR, "missing end of expression", i });
+						return result;
+					}
+
+					i += lexeme.Length;														//	skip lexeme with type OPENING_BRACE_OPERATOR
+
+					if (!wasLastConditionTrue) {
+						tmpStr = source.substr(i, exprLength);
+						tmpRes = Preprocess(tmpStr, filePath, includePaths, macros);
+						PrintMessages(tmpRes.Messages, filePath, source, exprPosition);
+						if (!tmpRes.WorkCompleted) return result;
+						result.Output += tmpRes.Output;
+					}
+
+					i += exprLength;														//	skip expression
+					lexeme = GetLexeme(source, i);
+					i += lexeme.Length;														//	skip lexeme with type CLOSING_BRACE_OPERATOR
+					wasConditionChecked = false;
+				}
+			}
+			else if (directiveName == "defined") {
+				if ((i += lexeme.Length) >= length) {										//	skip `defined`
+					result.Messages.push_back({ MessageType::ERROR, "missing macro name", i -= lexeme.Length });
+					return result;
+				}
+
+				do {
+					lexeme = GetLexeme(source, i);
+					if (lexeme.Group == GrammarGroup::REDUNDANT) i += lexeme.Length;
+				} while (i < length && lexeme.Group == GrammarGroup::REDUNDANT);			//	skip redundant lexemes
+
+				if (lexeme.Group != GrammarGroup::IDENTIFIER) {
+					result.Messages.push_back({ MessageType::ERROR, "missing macro name", i });
+					return result;
+				}
+
+				result.Output += GetMacroIndex(macros, lexeme.Value) == std::string::npos ? '0' : '1';
+
+				i += lexeme.Length;															//	skip identifier (macro name)
 			}
 			else {
-				strPos = GetLineColumnByPosition(source, i);
-				result.Messages.push_back({ MessageType::ERROR, "unknown preprocessor directive", strPos.Line, strPos.Column, i });
+				result.Messages.push_back({ MessageType::ERROR, "unknown preprocessor directive", i });
 				return result;
 			}
 		}
 		else if (lexeme.Type == GrammarType::IDENTIFIER) {
-			std::string name = source.substr(lexeme.Position, lexeme.Length);
-			size_t macroIndex = GetMacroIndex(macros, name);
+			//	tmpStr - identifier name
+			tmpStr = source.substr(lexeme.Position, lexeme.Length);
+			size_t macroIndex = GetMacroIndex(macros, tmpStr);
 			if (macroIndex == std::string::npos) {
-				result.Output += name;
+				result.Output += tmpStr;
 				i += lexeme.Length;
 				continue;
 			}
 
-			if (GetLexemeIndex(macros[macroIndex].Expression, name) != std::string::npos) {
-				strPos = GetLineColumnByPosition(source, i);
-				result.Messages.push_back({ MessageType::ERROR, "macro name found in its expression", strPos.Line, strPos.Column, i });
+			if (GetLexemeIndex(macros[macroIndex].Expression, tmpStr) != std::string::npos) {
+				result.Messages.push_back({ MessageType::ERROR, "macro name found in its expression", i });
 				return result;
 			}
 
 			if (macros[macroIndex].IsFunction) {
 				if ((i += lexeme.Length) >= length) {
-					strPos = GetLineColumnByPosition(source, i);
-					result.Messages.push_back({ MessageType::ERROR, "missing function macro arguments", strPos.Line, strPos.Column, i });
+					result.Messages.push_back({ MessageType::ERROR, "missing function macro arguments", i -= lexeme.Length });
 					return result;
 				}
 
@@ -269,33 +470,29 @@ Gear::PreprocessingResult_t Gear::Preprocess(
 				} while (i < length && lexeme.Group == GrammarGroup::REDUNDANT);
 
 				if (lexeme.Type != GrammarType::OPENING_PARENTHESIS_OPERATOR) {
-					strPos = GetLineColumnByPosition(source, i);
-					result.Messages.push_back({ MessageType::ERROR, "missing function macro arguments", strPos.Line, strPos.Column, i });
+					result.Messages.push_back({ MessageType::ERROR, "missing function macro arguments", i });
 					return result;
 				}
 
 				std::vector<std::vector<Lexeme_t> > arguments;
 				if (!GetArgumentsFromNestedExpression(source, i, arguments)) {
-					strPos = GetLineColumnByPosition(source, i);
-					result.Messages.push_back({ MessageType::ERROR, "incorrect use of a macro", strPos.Line, strPos.Column, i });
+					result.Messages.push_back({ MessageType::ERROR, "incorrect use of a macro", i });
 					return result;
 				}
 
-				size_t nestingLength = GetNestingLength(
+				exprLength = GetExpressionLength(
 					source,
 					i,
 					GrammarType::OPENING_PARENTHESIS_OPERATOR,
-					GrammarType::CLOSING_PARENTHESIS_OPERATOR,
-					false
+					GrammarType::CLOSING_PARENTHESIS_OPERATOR
 				);
 
 				std::vector<Lexeme_t> exprResult;
 				if (
-					nestingLength == std::string::npos ||
+					exprLength == std::string::npos ||
 					!ExpandExpression(source, macros[macroIndex].Expression, arguments, macros[macroIndex].Parameters, macros, exprResult)
 				) {
-					strPos = GetLineColumnByPosition(source, i);
-					result.Messages.push_back({ MessageType::ERROR, "incorrect use of a macro", strPos.Line, strPos.Column, i });
+					result.Messages.push_back({ MessageType::ERROR, "incorrect use of a macro", i });
 					return result;
 				}
 
@@ -303,13 +500,12 @@ Gear::PreprocessingResult_t Gear::Preprocess(
 					if (lex.Length == 0) result.Output += std::to_string(lex.Position);
 					else result.Output += lex.Value;
 				}
-				i += nestingLength;
+				i += exprLength;
 			}
 			else {
 				std::vector<Lexeme_t> exprResult;
 				if (!ExpandExpression(source, macros[macroIndex].Expression, {}, macros[macroIndex].Parameters, macros, exprResult)) {
-					strPos = GetLineColumnByPosition(source, i);
-					result.Messages.push_back({ MessageType::ERROR, "incorrect use of a macro", strPos.Line, strPos.Column, i });
+					result.Messages.push_back({ MessageType::ERROR, "incorrect use of a macro", i });
 					return result;
 				}
 
@@ -335,7 +531,7 @@ size_t Gear::CreateMacro(const std::string source, size_t namePosition, Macro_t 
 	Lexeme_t lexeme = GetLexeme(source, namePosition);
 	if (lexeme.Group != GrammarGroup::IDENTIFIER) return std::string::npos;
 
-	size_t position = namePosition;
+	size_t exprLength, position = namePosition;
 	result.Name = lexeme.Value;
 	position += lexeme.Length;
 	lexeme = GetLexeme(source, position);
@@ -360,15 +556,15 @@ size_t Gear::CreateMacro(const std::string source, size_t namePosition, Macro_t 
 			}
 		}
 
-		size_t nestingLength = GetNestingLength(
+		exprLength = GetExpressionLength(
 			source,
 			position,
 			GrammarType::OPENING_PARENTHESIS_OPERATOR,
 			GrammarType::CLOSING_PARENTHESIS_OPERATOR
 		);
 
-		if (nestingLength == std::string::npos) return std::string::npos;
-		position += nestingLength;
+		if (exprLength == std::string::npos) return std::string::npos;
+		position += exprLength;
 	}
 
 	do {
@@ -378,17 +574,17 @@ size_t Gear::CreateMacro(const std::string source, size_t namePosition, Macro_t 
 
 	if (lexeme.Type != GrammarType::OPENING_BRACE_OPERATOR) return std::string::npos;
 
-	size_t nestedExprLen = GetNestedExpressionLength(
+	exprLength = GetNestedExpressionLength(
 		source,
 		position,
 		GrammarType::OPENING_BRACE_OPERATOR,
-		GrammarType::CLOSING_BRACE_OPERATOR, false
+		GrammarType::CLOSING_BRACE_OPERATOR
 	);
 
-	if (nestedExprLen == std::string::npos) return std::string::npos;
+	if (exprLength == std::string::npos) return std::string::npos;
 
 	position += lexeme.Length;
-	size_t closingLimiterPosition = position + nestedExprLen;
+	size_t closingLimiterPosition = position + exprLength;
 
 	while (position < closingLimiterPosition) {
 		lexeme = GetLexeme(source, position);

@@ -3,6 +3,7 @@
 #include "gear-message.hpp"
 #include "gear-file.hpp"
 #include "gear-path.hpp"
+#include "gear-expression.hpp"
 #include "gear-lexer.hpp"
 
 namespace Gear {
@@ -21,7 +22,7 @@ namespace Gear {
 
 	PreprocessingResult_t Preprocess(
 		const std::string source,
-		const std::string srcFileDirectoryPath,
+		const std::string filePath,
 		const std::vector<std::string> includePaths,
 		std::vector<Macro_t> &macros
 	);

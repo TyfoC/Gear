@@ -1,3 +1,8 @@
+/*
+	To preprocess this file:
+	1.	Navigate to build/
+	2.	Start bin/gear32 or bin/gear64 with this arguments: `-preprocess ../examples/0/0.gear -I ../examples/0`
+*/
 @preinc "inc1.gear"		//	preprocess file & include
 @preinc <inc2.gear>
 
@@ -17,5 +22,5 @@
 		argv - input arguments
 */
 int main(int argc, char** argv) {
-	return VAR;
+	return VAR + @ifdef FF {FF}@else {99} * @defined FUNC;
 }
