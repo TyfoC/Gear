@@ -1,26 +1,10 @@
-/*
-	To preprocess this file:
-	1.	Navigate to build/
-	2.	Start bin/gear32 or bin/gear64 with this arguments: `-preprocess ../examples/0/0.gear -I ../examples/0`
-*/
-@preinc "inc1.gear"		//	preprocess file & include
-@preinc <inc2.gear>
+@preinc "inc1.gear"
+@rawinc <inc2.gear>
 
-@def VAR	{FUNC(1,2) + FUNC(4,3)}
+@def AAA(a, b)	{a,b}
+@def BBB(a, b)	{3 - AAA(b,a)}
+@def CCC(a, b)	{4 + BBB(a,b)}
 
-@save {
-	This data will not be changed!
-	//	And this
-	/*
-		Also this
-	*/
-}
-
-/*
-	C main function
-		argc - input arguments count
-		argv - input arguments
-*/
 int main(int argc, char** argv) {
-	return VAR + @ifdef FF {FF}@else {99} * @defined FUNC;
+	return CCC(1,2) * @defined DDD / @ifndef EEE{1}@else{2};
 }

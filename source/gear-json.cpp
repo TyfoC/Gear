@@ -1,16 +1,16 @@
 #include <gear-json.hpp>
 
-std::string Gear::StringifyJsonElement(const JsonElement_t jsonElement, bool expandNestedElements, size_t nestingLevel) {
+std::string Gear::StringifyJsonElement(const JsonElement jsonElement, bool expandNestedElements, size_t nestingLevel) {
 	std::string result = "";
 	for (size_t i = 0; i < nestingLevel; i++) result += '\t';
 
 	if (jsonElement.Name[0]) result += '\"' + jsonElement.Name + "\": ";
 
-	if (jsonElement.Type == JsonElementType::ARRAY || jsonElement.Type == JsonElementType::OBJECT) {
-		result += jsonElement.Type == JsonElementType::ARRAY ? "[" : "{";
+	if (jsonElement.Type == JsonElement::TYPE_ARRAY || jsonElement.Type == JsonElement::TYPE_OBJECT) {
+		result += jsonElement.Type == JsonElement::TYPE_ARRAY ? "[" : "{";
 		if (expandNestedElements) {
 			result += '\n';
-			for (const JsonElement_t &element : jsonElement.Values) {
+			for (const JsonElement &element : jsonElement.Values) {
 				result += StringifyJsonElement(element, nestingLevel + 1);
 				result += ",\n";
 			}
@@ -18,20 +18,21 @@ std::string Gear::StringifyJsonElement(const JsonElement_t jsonElement, bool exp
 		}
 		else {
 			result += ' ';
-			for (const JsonElement_t &element : jsonElement.Values) {
+			for (const JsonElement &element : jsonElement.Values) {
 				result += StringifyJsonElement(element, nestingLevel + 1);
 				result += ", ";
 			}
 			result.erase(result.length() - 2, 1);
 		}
 
-		result += jsonElement.Type == JsonElementType::ARRAY ? "]" : "}";
+		result += jsonElement.Type == JsonElement::TYPE_ARRAY ? "]" : "}";
 	}
-	else if (jsonElement.Type == JsonElementType::STRING) result += '\"' + jsonElement.Value + '\"';
-	else if (jsonElement.Type == JsonElementType::HEX) result += "0x" + jsonElement.Value;
-	else if (jsonElement.Type == JsonElementType::DEC) result += jsonElement.Value;
-	else if (jsonElement.Type == JsonElementType::OCT) result += "0o" + jsonElement.Value;
-	else if (jsonElement.Type == JsonElementType::BIN) result += "0b" + jsonElement.Value;
+	else if (jsonElement.Type == JsonElement::TYPE_STRING) result += '\"' + jsonElement.Value + '\"';
+	else if (jsonElement.Type == JsonElement::TYPE_CHAR) result += '\'' + jsonElement.Value + '\'';
+	else if (jsonElement.Type == JsonElement::TYPE_HEX) result += "0x" + jsonElement.Value;
+	else if (jsonElement.Type == JsonElement::TYPE_DEC) result += jsonElement.Value;
+	else if (jsonElement.Type == JsonElement::TYPE_OCT) result += "0o" + jsonElement.Value;
+	else if (jsonElement.Type == JsonElement::TYPE_BIN) result += "0b" + jsonElement.Value;
 	else result += jsonElement.Value;
 
 	return result;

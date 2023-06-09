@@ -1,41 +1,45 @@
 #pragma once
 
 #include "gear-message.hpp"
-#include "gear-file.hpp"
-#include "gear-path.hpp"
-#include "gear-expression.hpp"
-#include "gear-lexer.hpp"
+#include "gear-file-utils.hpp"
+#include "gear-path-utils.hpp"
+#include "gear-string-utils.hpp"
+#include "gear-math-expression.hpp"
+#include "gear-scanner.hpp"
 
 namespace Gear {
-	struct Macro_t {
-		std::string				Name;
-		std::vector<Lexeme_t>	Parameters;
-		std::vector<Lexeme_t>	Expression;
-		bool					IsFunction;
+	struct Macro {
+		std::string			Name;
+		std::vector<Token>	Parameters;
+		std::vector<Token>	Expression;
+		bool				IsFunction;
 	};
 
-	struct PreprocessingResult_t {
-		bool					WorkCompleted;
+	struct PreprocessingResult {
+		bool					IsWorkCompleted;
 		std::string				Output;
-		std::vector<Message_t>	Messages;
+		std::vector<Message>	Messages;
 	};
 
-	PreprocessingResult_t Preprocess(
+	PreprocessingResult Preprocess(
 		const std::string source,
 		const std::string filePath,
 		const std::vector<std::string> includePaths,
-		std::vector<Macro_t> &macros
+		std::vector<Macro> &macros
 	);
 
-	size_t CreateMacro(const std::string source, size_t namePosition, Macro_t &result);
-	size_t GetMacroIndex(const std::vector<Macro_t> macros, const std::string name);
-	
+	size_t GetMacroIndex(const std::vector<Macro> &macros, const std::string &name);
+
+	bool CreateMacro(
+		Scanner &scanner,
+		Macro &result
+	);
+
 	bool ExpandExpression(
-		const std::string source,
-		const std::vector<Lexeme_t> expression,
-		const std::vector<std::vector<Lexeme_t> > arguments,
-		const std::vector<Lexeme_t> parameters,
-		const std::vector<Macro_t> macros,
-		std::vector<Lexeme_t> &result
+		const std::vector<Token> &expression,
+		const std::vector<Token> &parameters,
+		const std::vector<std::vector<Token> > &arguments,
+		const std::vector<Macro> &macros,
+		std::vector<Token> &result
 	);
 }

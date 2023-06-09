@@ -1,1 +1,1 @@
-@def FUNC(a, b)	{(a + b)}
+int g_Var3 = 3 + 4@join5;

@@ -1,4 +1,4 @@
-#include <gear-file.hpp>
+#include <gear-file-utils.hpp>
 
 size_t Gear::GetFileLength(std::ifstream &handle) {
 	std::streampos currentPos = handle.tellg();
