@@ -21,25 +21,28 @@ namespace Gear {
 		std::vector<Message>	Messages;
 	};
 
-	PreprocessingResult Preprocess(
-		const std::string source,
-		const std::string filePath,
-		const std::vector<std::string> includePaths,
-		std::vector<Macro> &macros
-	);
+	class Preprocessor {
+		public:
+		static PreprocessingResult Preprocess(
+			const std::string source,
+			const std::string filePath,
+			const std::vector<std::string> includePaths,
+			std::vector<Macro> &macros
+		);
 
-	size_t GetMacroIndex(const std::vector<Macro> &macros, const std::string &name);
+		static size_t GetMacroIndex(const std::vector<Macro> &macros, const std::string &name);
 
-	bool CreateMacro(
-		Scanner &scanner,
-		Macro &result
-	);
+		static bool CreateMacro(
+			Scanner &scanner,
+			Macro &result
+		);
 
-	bool ExpandExpression(
-		const std::vector<Token> &expression,
-		const std::vector<Token> &parameters,
-		const std::vector<std::vector<Token> > &arguments,
-		const std::vector<Macro> &macros,
-		std::vector<Token> &result
-	);
+		static bool ExpandExpression(
+			const std::vector<Token> &expression,
+			const std::vector<Token> &parameters,
+			const std::vector<std::vector<Token> > &arguments,
+			const std::vector<Macro> &macros,
+			std::vector<Token> &result
+		);
+	};
 }

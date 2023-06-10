@@ -1,11 +1,25 @@
 #include <main.hpp>
 
 void PrintInfo() {
-
+	size_t majorVer = (GEAR_VERSION >> 16) & 0xff;
+	size_t minorVer = (GEAR_VERSION >> 8) & 0xff;
+	size_t buildVer = GEAR_VERSION & 0xff;
+	std::cout << "Gear programming language toolkit by github.com/TyfoC" << std::endl;
+	std::cout << "Version: " << majorVer << '.' << minorVer << '.' << buildVer << std::endl;
 }
 
 void PrintHelp() {
-
+	std::cout << "Usage: gear32/64 <-action> [<-options>] [<-input file paths>]" << std::endl;
+	std::cout << "Actions:" << std::endl;
+	std::cout << "\t-info - show version info" << std::endl;
+	std::cout << "\t-help - show help" << std::endl;
+	std::cout << "\t-tokenize - generate token table from file (-o, -f)" << std::endl;
+	std::cout << "\t-preprocess - preprocess file (-o, -I)" << std::endl;
+	std::cout << "Options:" << std::endl;
+	std::cout << "\t-o - select output path" << std::endl;
+	std::cout << "\t-f - select output format" << std::endl;
+	std::cout << "\t\tOutput formats: std, json" << std::endl;
+	std::cout << "\t-I - include directory" << std::endl;
 }
 
 int main(int argc, char** argv) {
@@ -120,7 +134,7 @@ int main(int argc, char** argv) {
 		input.close();
 
 		std::vector<Gear::Macro> macros;
-		Gear::PreprocessingResult result = Gear::Preprocess(fileData, inputPaths[0], includePaths, macros);
+		Gear::PreprocessingResult result = Gear::Preprocessor::Preprocess(fileData, inputPaths[0], includePaths, macros);
 		Gear::PrintMessages(result.Messages, inputPaths[0], fileData);
 		if (!result.IsWorkCompleted) return 5;
 

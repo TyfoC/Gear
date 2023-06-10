@@ -1,6 +1,6 @@
 #include <gear-preprocessor.hpp>
 
-Gear::PreprocessingResult Gear::Preprocess(
+Gear::PreprocessingResult Gear::Preprocessor::Preprocess(
 	const std::string source,
 	const std::string filePath,
 	const std::vector<std::string> includePaths,
@@ -347,13 +347,13 @@ Gear::PreprocessingResult Gear::Preprocess(
 	return result;
 }
 
-size_t Gear::GetMacroIndex(const std::vector<Macro> &macros, const std::string &name) {
+size_t Gear::Preprocessor::GetMacroIndex(const std::vector<Macro> &macros, const std::string &name) {
 	size_t count = macros.size();
 	for (size_t i = 0; i < count; i++) if (macros[i].Name == name) return i;
 	return std::string::npos;
 }
 
-bool Gear::CreateMacro(
+bool Gear::Preprocessor::CreateMacro(
 	Scanner &scanner,
 	Macro &result
 ) {
@@ -388,7 +388,7 @@ bool Gear::CreateMacro(
 	return true;
 }
 
-bool Gear::ExpandExpression(
+bool Gear::Preprocessor::ExpandExpression(
 	const std::vector<Token> &expression,
 	const std::vector<Token> &parameters,
 	const std::vector<std::vector<Token> > &arguments,
